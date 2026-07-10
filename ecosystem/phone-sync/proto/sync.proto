@@ -1,0 +1,262 @@
+syntax = "proto3";
+
+package orionos.sync;
+
+option java_package = "org.orionos.sync.proto";
+option java_outer_classname = "OrionSyncProto";
+option go_package = "github.com/yousefelsharkawy26/OrionOS-Linux-Distro/ecosystem/phone-sync/cloud/internal/proto";
+
+// Device information
+message DeviceInfo {
+  string device_id = 1;
+  string device_name = 2;
+  DeviceType device_type = 3;
+  string os_version = 4;
+  string app_version = 5;
+  repeated string capabilities = 6;
+  int64 last_seen = 7;
+}
+
+enum DeviceType {
+  DEVICE_TYPE_UNKNOWN = 0;
+  DEVICE_TYPE_PHONE = 1;
+  DEVICE_TYPE_TABLET = 2;
+  DEVICE_TYPE_DESKTOP = 3;
+  DEVICE_TYPE_LAPTOP = 4;
+}
+
+// Clipboard sync
+message ClipboardContent {
+  ClipboardType type = 1;
+  string text = 2;
+  bytes binary_data = 3;
+  repeated FileMetadata files = 4;
+  int64 timestamp = 5;
+}
+
+enum ClipboardType {
+  CLIPBOARD_TYPE_TEXT = 0;
+  CLIPBOARD_TYPE_RICH_TEXT = 1;
+  CLIPBOARD_TYPE_IMAGE = 2;
+  CLIPBOARD_TYPE_FILE = 3;
+  CLIPBOARD_TYPE_MULTI = 4;
+}
+
+// File transfer
+message FileMetadata {
+  string id = 1;
+  string name = 2;
+  uint64 size = 3;
+  string mime_type = 4;
+  bytes thumbnail = 5;
+  string checksum = 6;
+}
+
+message FileChunk {
+  string file_id = 1;
+  uint32 offset = 2;
+  bytes data = 3;
+  bool is_last = 4;
+}
+
+message FileRequest {
+  string file_id = 1;
+  DeviceInfo sender = 2;
+  DeviceInfo receiver = 3;
+}
+
+message FileResponse {
+  string file_id = 1;
+  FileResponseCode code = 2;
+  string message = 3;
+}
+
+enum FileResponseCode {
+  FILE_RESPONSE_CODE_UNKNOWN = 0;
+  FILE_RESPONSE_CODE_ACCEPTED = 1;
+  FILE_RESPONSE_CODE_REJECTED = 2;
+  FILE_RESPONSE_CODE_ERROR = 3;
+  FILE_RESPONSE_CODE_COMPLETE = 4;
+}
+
+// Notification sync
+message Notification {
+  string id = 1;
+  string app_name = 2;
+  string package_name = 3;
+  string title = 4;
+  string text = 5;
+  bytes icon = 6;
+  bytes large_icon = 7;
+  int64 timestamp = 8;
+  map<string, string> actions = 9;
+  bool is_clearable = 10;
+  string group_key = 11;
+  int32 priority = 12;
+}
+
+message NotificationAction {
+  string id = 1;
+  string label = 2;
+  string action = 3;
+  map<string, string> extras = 4;
+}
+
+// SMS integration
+message SMSMessage {
+  string id = 1;
+  string thread_id = 2;
+  string address = 3;
+  string contact_name = 4;
+  string text = 5;
+  int64 timestamp = 6;
+  bool incoming = 7;
+  bool read = 8;
+}
+
+message SMSConversation {
+  string thread_id = 1;
+  string address = 2;
+  string contact_name = 3;
+  string last_message = 4;
+  int64 last_timestamp = 5;
+  int32 unread_count = 6;
+  bytes contact_avatar = 7;
+}
+
+// Input events (universal control)
+message InputEvent {
+  InputEventType type = 1;
+  double x = 2;
+  double y = 3;
+  int32 button = 4;
+  int32 key_code = 5;
+  string key_text = 6;
+  bool shift = 7;
+  bool ctrl = 8;
+  bool alt = 9;
+  bool meta = 10;
+  int64 timestamp = 11;
+}
+
+enum InputEventType {
+  INPUT_EVENT_TYPE_UNKNOWN = 0;
+  INPUT_EVENT_TYPE_MOUSE_MOVE = 1;
+  INPUT_EVENT_TYPE_MOUSE_PRESS = 2;
+  INPUT_EVENT_TYPE_MOUSE_RELEASE = 3;
+  INPUT_EVENT_TYPE_MOUSE_SCROLL = 4;
+  INPUT_EVENT_TYPE_KEY_PRESS = 5;
+  INPUT_EVENT_TYPE_KEY_RELEASE = 6;
+}
+
+// Pairing
+message PairingRequest {
+  DeviceInfo sender = 1;
+  string pairing_code = 2;
+  int64 timestamp = 3;
+}
+
+message PairingResponse {
+  DeviceInfo receiver = 1;
+  PairingResultCode code = 2;
+  string message = 3;
+  bytes public_key = 4;
+}
+
+enum PairingResultCode {
+  PAIRING_RESULT_CODE_UNKNOWN = 0;
+  PAIRING_RESULT_CODE_ACCEPTED = 1;
+  PAIRING_RESULT_CODE_REJECTED = 2;
+  PAIRING_RESULT_CODE_TIMEOUT = 3;
+  PAIRING_RESULT_CODE_ERROR = 4;
+}
+
+// Sync messages
+message SyncMessage {
+  MessageType type = 1;
+  DeviceInfo sender = 2;
+  DeviceInfo receiver = 3;
+  int64 timestamp = 4;
+  bytes payload = 5;
+  string message_id = 6;
+  bool requires_ack = 7;
+}
+
+enum MessageType {
+  MESSAGE_TYPE_UNKNOWN = 0;
+  MESSAGE_TYPE_CLIPBOARD = 1;
+  MESSAGE_TYPE_FILE_REQUEST = 2;
+  MESSAGE_TYPE_FILE_CHUNK = 3;
+  MESSAGE_TYPE_FILE_RESPONSE = 4;
+  MESSAGE_TYPE_NOTIFICATION = 5;
+  MESSAGE_TYPE_NOTIFICATION_ACTION = 6;
+  MESSAGE_TYPE_SMS = 7;
+  MESSAGE_TYPE_SMS_CONVERSATION = 8;
+  MESSAGE_TYPE_INPUT_EVENT = 9;
+  MESSAGE_TYPE_PAIRING_REQUEST = 10;
+  MESSAGE_TYPE_PAIRING_RESPONSE = 11;
+  MESSAGE_TYPE_DEVICE_DISCOVERY = 12;
+  MESSAGE_TYPE_HEARTBEAT = 13;
+  MESSAGE_TYPE_ACK = 14;
+}
+
+// API messages
+message DeviceListRequest {
+  DeviceInfo requesting_device = 1;
+}
+
+message DeviceListResponse {
+  repeated DeviceInfo devices = 2;
+}
+
+message SendRequest {
+  SyncMessage message = 1;
+}
+
+message SendResponse {
+  bool success = 1;
+  string message_id = 2;
+  string error = 3;
+}
+
+message RegisterDeviceRequest {
+  DeviceInfo device = 1;
+}
+
+message RegisterDeviceResponse {
+  string device_token = 1;
+  int64 expires_at = 2;
+}
+
+message HeartbeatRequest {
+  DeviceInfo device = 1;
+}
+
+message HeartbeatResponse {
+  bool online = 1;
+  repeated DeviceInfo online_devices = 2;
+}
+
+// Service definition
+service SyncService {
+  // Device management
+  rpc RegisterDevice(RegisterDeviceRequest) returns (RegisterDeviceResponse);
+  rpc UpdateDevice(RegisterDeviceRequest) returns (RegisterDeviceResponse);
+  rpc UnregisterDevice(DeviceInfo) returns (google.protobuf.Empty);
+  
+  // Messaging
+  rpc Send(SendRequest) returns (SendResponse);
+  rpc StreamMessages(DeviceInfo) returns (stream SyncMessage);
+  
+  // Device discovery
+  rpc ListDevices(DeviceListRequest) returns (DeviceListResponse);
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+  
+  // Pairing
+  rpc Pair(PairingRequest) returns (PairingResponse);
+  rpc Unpair(DeviceInfo) returns (google.protobuf.Empty);
+  
+  // File transfer
+  rpc RequestFile(FileRequest) returns (FileResponse);
+  rpc StreamFileChunks(string file_id) returns (stream FileChunk);
+}

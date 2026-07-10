@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=OrionOS Voice Assistant
+Comment=Voice assistant for OrionOS
+Exec=orionos-voice-assistant-launcher
+Icon=orionos-voice-assistant
+Terminal=false
+Type=Application
+Categories=Utility;Accessibility;Audio;
+StartupNotify=true
+Keywords=voice;assistant;speech;stt;tts;

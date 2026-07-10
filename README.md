@@ -152,12 +152,31 @@ make PROFILE=gaming all
 
 ## Documentation
 
+### Core
 - [System Architecture](docs/architecture/system-architecture.md)
 - [Kernel Modifications](docs/kernel-modifications.md)
 - [Desktop Architecture](docs/desktop-architecture.md)
 - [Update System](docs/update-system.md)
 - [Security Model](docs/security-model.md)
 - [AI Platform](docs/ai-platform.md)
+
+### Features (v0.2.0 Beta)
+- [Calamares Installer](docs/features/calamares-installer.md)
+- [Software Center](docs/features/software-center.md)
+- [Game Optimization](docs/features/game-optimization.md)
+- [Voice Assistant](docs/features/voice-assistant.md)
+- [Phone Sync](docs/features/phone-sync.md)
+- [Display Optimization](docs/features/display-optimization.md)
+
+### Features (v1.0.0 Stable)
+- [Secure Boot](docs/features/secureboot.md)
+- [TPM + LUKS](docs/features/tpm-luks.md)
+- [Cloud Sync GUI](docs/features/cloud-sync-gui.md)
+- [Plugin Marketplace](docs/features/plugin-marketplace.md)
+
+### Guides
+- [Installation Guide](docs/installation/installation-guide.md)
+- [Desktop Guide](docs/desktop/desktop-guide.md)
 - [Developer Guide](docs/developer-guide.md)
 - [Contribution Guide](docs/contribution-guide.md)
 - [Release Process](docs/release-process.md)
@@ -168,64 +187,41 @@ make PROFILE=gaming all
 orionos/
 ├── packages/          # Package definitions (PKGBUILDs)
 │   ├── core/         # Core system packages
+│   │   ├── orionos-config/
+│   │   ├── orionos-desktop/
+│   │   ├── orionos-security/
+│   │   ├── orionos-services/
+│   │   ├── orionos-themes/
+│   │   ├── orionos-utils/
+│   │   ├── orionos-voice-assistant/
+│   │   ├── orionos-secureboot/
+│   │   └── orionos-tpm-luks/
 │   ├── extra/        # Additional packages
+│   │   ├── calamares/
+│   │   ├── orionos-software-center/
+│   │   ├── orionos-game-optimize/
+│   │   ├── orionos-display-optimization/
+│   │   ├── orionos-cloud-sync/
+│   │   └── orionos-plugin-marketplace/
 │   └── community/    # Community packages
 ├── kernel/           # Custom kernel build
-│   ├── patches/      # Kernel patches
-│   ├── config/       # Kernel configurations
-│   └── scripts/      # Build scripts
 ├── desktop/          # Desktop environment configs
-│   ├── hyprland/     # Window manager config
-│   ├── waybar/       # Status bar config
-│   ├── rofi/         # Launcher config
-│   └── wallpapers/   # Wallpaper collection
 ├── services/         # System services
-│   ├── systemd/      # Service definitions
-│   └── scripts/      # Service implementations
 ├── ai/               # AI platform
-│   ├── runtime/      # Runtime backends
-│   ├── models/       # Model configurations
-│   └── plugins/      # Plugin system
 ├── gaming/           # Gaming stack
-│   ├── steam/        # Steam configuration
-│   ├── proton/       # Proton settings
-│   └── optimizations/# Performance profiles
 ├── security/         # Security configuration
-│   ├── selinux/      # SELinux policies
-│   ├── apparmor/     # AppArmor profiles
-│   └── firewall/     # Firewall rules
 ├── ecosystem/        # Cross-device services
-│   ├── sync/         # Synchronization
-│   ├── sharing/      # File sharing
-│   └── cloud/        # Cloud integration
-├── branding/         # Visual identity
-│   ├── logo/         # Logo assets
-│   ├── colors/       # Color palette
-│   └── fonts/        # Typography
-├── themes/           # UI themes
-│   ├── gtk/          # GTK themes
-│   ├── icon/         # Icon themes
-│   ├── cursor/       # Cursor themes
-│   └── sound/        # Sound themes
+│   └── phone-sync/   # Phone sync
+│       ├── desktop/  # Rust desktop service
+│       ├── cloud/    # Go cloud service
+│       └── proto/    # Protocol Buffers
 ├── scripts/          # Build and utility scripts
-│   ├── build/        # Build system
-│   ├── install/      # Installation scripts
-│   └── maintain/     # Maintenance scripts
-├── build/            # Build output
-│   ├── iso/          # Generated ISOs
-│   ├── packages/     # Built packages
-│   └── repo/         # Package repository
-├── ci/               # CI/CD configuration
-│   └── github-actions/ # GitHub Actions workflows
 ├── testing/          # Test suite
-│   ├── unit/         # Unit tests
-│   ├── integration/  # Integration tests
-│   └── performance/  # Performance tests
-└── docs/             # Documentation
-    ├── architecture/ # System architecture
-    ├── installation/ # Installation guide
-    ├── development/  # Developer guide
-    └── security/     # Security documentation
+│   └── run-tests.sh  # Test runner
+├── docs/             # Documentation
+│   ├── features/     # Feature documentation
+│   └── installation/ # Installation guides
+└── build/            # Build output
 ```
 
 ## Technology Stack
@@ -292,21 +288,21 @@ OrionOS is licensed under the GNU General Public License v3.0. See [LICENSE](LIC
 - [x] Update system (A/B updates)
 - [x] Btrfs filesystem with snapshots
 
-### v0.2.0 Beta
-- [ ] Graphical installer (Calamares)
-- [ ] Software center (pacman + Flatpak + AppImage)
-- [ ] Phone sync mobile app
-- [ ] Improved game auto-optimization
-- [ ] Voice assistant integration
-- [ ] HDR/VRR improvements
+### v0.2.0 Beta (In Progress)
+- [x] Graphical installer (Calamares)
+- [x] Software center (pacman + Flatpak + AppImage)
+- [x] Phone sync mobile app (Rust desktop + Go cloud)
+- [x] Improved game auto-optimization
+- [x] Voice assistant integration
+- [x] HDR/VRR improvements
 
 ### v1.0.0 Stable
-- [ ] Full Secure Boot support
-- [ ] TPM + LUKS auto-setup
-- [ ] Cloud synchronization GUI
-- [ ] Plugin marketplace
-- [ ] Documentation completion
-- [ ] Stability and polish
+- [x] Full Secure Boot support
+- [x] TPM + LUKS auto-setup
+- [x] Cloud synchronization GUI
+- [x] Plugin marketplace
+- [x] Documentation completion
+- [x] Stability and polish
 
 ### Future
 - [ ] ARM64 support

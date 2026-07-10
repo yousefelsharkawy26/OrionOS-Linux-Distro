@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+"""
+OrionOS Btrfs Configuration
+Configures Btrfs subvolumes and mount options
+"""
+
+import os
+import subprocess
+from pathlib import Path
+
+def configure_btrfs():
+    """Configure Btrfs subvolumes and mount options"""
+    root_mount = "/tmp/calamares-root"
+    
+    # Mount options
+    btrfs_opts = "noatime,compress=zstd:3,space_cache=v2,ssd"
+    
+    # Create subvolumes
+    subvolumes = [
+        ("@", "/"),
+        ("@home", "/home"),
+        ("@var", "/var"),
+        ("@tmp", "/tmp"),
+        ("@snapshots", "/.snapshots")
+    ]
+    
+    # Mount root subvolume
+    subprocess.run([
+        "mount", "-o", f"{btrfs_opts},subvol=@", 
+        "/dev/mapper/orionos-root", root_mount
+    ], check=True)
+    
+    # Create and mount other subvolumes
+    for subvol, mount_point in subvolumes[1:]:
+        full_path = os.path.join(root_mount, mount_point.lstrip("/"))
+        os.makedirs(full_path, exist_ok=True)
+        subprocess.run([
+            "mount", "-o", f"{btrfs_opts},subvol={subvol}", 
+            "/dev/mapper/orionos-root", full_path
+        ], check=True)
+
+if __name__ == "__main__":
+    configure_btrfs()

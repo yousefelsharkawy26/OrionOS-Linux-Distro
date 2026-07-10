@@ -1,0 +1,43 @@
+#!/bin/bash
+# OrionOS TPM + LUKS Status
+set -euo pipefail
+
+echo "=== OrionOS TPM + LUKS Status ==="
+echo ""
+
+echo "--- TPM 2.0 ---"
+if command -v tpm2_getcap &>/dev/null; then
+    if tpm2_getcap properties-fixed &>/dev/null; then
+        echo "  Status: Available"
+        tpm2_getcap properties-fixed 2>/dev/null | head -5
+    else
+        echo "  Status: Not available"
+    fi
+else
+    echo "  Status: tpm2-tools not installed"
+fi
+
+echo ""
+echo "--- LUKS Devices ---"
+for dev in /dev/sd* /dev/nvme*; do
+    if [[ -b "$dev" ]] && cryptsetup isLuks "$dev" 2>/dev/null; then
+        echo "  Device: $dev"
+        cryptsetup luksDump "$dev" 2>/dev/null | grep -E "Version|Cipher|Hash|Keyslots" || true
+
+        echo "  Token slots:"
+        systemd-cryptenroll "$dev" 2>/dev/null | grep -E "tpm2|pin" || echo "    No TPM/PIN enrollment"
+        echo ""
+    fi
+done
+
+echo "--- Backup Status ---"
+BACKUP_DIR="/var/lib/orionos/tpm-luks/backup"
+if [[ -d "$BACKUP_DIR" ]]; then
+    echo "  Backups found:"
+    ls -la "$BACKUP_DIR"/*.bak 2>/dev/null || echo "    No backups"
+else
+    echo "  No backup directory"
+fi
+
+echo ""
+echo "=== Status Complete ==="

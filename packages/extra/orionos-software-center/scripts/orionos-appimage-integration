@@ -1,0 +1,75 @@
+#!/bin/bash
+# OrionOS AppImage Integration
+# Handles AppImage registration and management
+
+set -euo pipefail
+
+# AppImage directory
+APPIMAGE_DIR="${HOME}/Applications"
+APPIMAGE_DESKTOP_DIR="${HOME}/.local/share/applications"
+
+# Create directories if they don't exist
+mkdir -p "${APPIMAGE_DIR}"
+mkdir -p "${APPIMAGE_DESKTOP_DIR}"
+
+integrate_appimage() {
+    local appimage_path="$1"
+    
+    # Make AppImage executable
+    chmod +x "${appimage_path}"
+    
+    # Get AppImage info
+    local app_name="$(basename "${appimage_path}" .AppImage)"
+    local desktop_file="${APPIMAGE_DESKTOP_DIR}/${app_name}.desktop"
+    
+    # Check if already integrated
+    if [[ -f "${desktop_file}" ]]; then
+        echo "AppImage already integrated: ${app_name}"
+        return 0
+    fi
+    
+    # Create desktop file
+    cat > "${desktop_file}" << EOF
+[Desktop Entry]
+Name=${app_name}
+Exec=${appimage_path}
+Icon=application-x-executable
+Type=Application
+Terminal=false
+Categories=Utility;
+StartupWMClass=${app_name}
+EOF
+
+    echo "AppImage integrated: ${app_name}"
+}
+
+main() {
+    local action="${1:-}"
+    local path="${2:-}"
+
+    case "$action" in
+        integrate)
+            if [[ -z "$path" ]]; then
+                echo "Usage: $0 integrate <appimage-path>"
+                exit 1
+            fi
+            integrate_appimage "$path"
+            ;;
+        remove)
+            if [[ -z "$path" ]]; then
+                echo "Usage: $0 remove <app-name>"
+                exit 1
+            fi
+            remove_integration "$path"
+            ;;
+        list)
+            list_integrated
+            ;;
+        *)
+            echo "Usage: $0 {integrate|remove|list} [path]"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

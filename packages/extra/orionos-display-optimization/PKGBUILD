@@ -1,0 +1,52 @@
+# Maintainer: Yousef Elsharkawy <yousefelsharkawy26@gmail.com>
+pkgname=orionos-display-optimization
+pkgver=0.2.0
+pkgrel=1
+pkgdesc="OrionOS Display Optimization - HDR, VRR, and display improvements"
+arch=('x86_64')
+url="https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro"
+license=('GPL3')
+depends=(
+    'python'
+    'python-psutil'
+    'xorg-xrandr'
+    'xorg-xdpyinfo'
+    'libva'
+    'vulkan-tools'
+    'mesa-utils'
+)
+makedepends=(
+    'python-setuptools'
+    'python-wheel'
+)
+optdepends=(
+    'nvidia-utils: NVIDIA display optimization'
+    'vulkan-radeon: AMD display optimization'
+    'intel-media-driver: Intel display optimization'
+    'libdisplay-info: Display information library'
+)
+conflicts=('orionos-display-optimization-git')
+provides=('orionos-display-optimization')
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro/releases/download/${pkgver}/${pkgname}-${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+prepare() {
+    cd "${pkgname}-${pkgver}"
+    mkdir -p build
+}
+
+build() {
+    cd "${pkgname}-${pkgver}/build"
+    python -m pip install --prefix=/usr --root="${pkgdir}" ..
+}
+
+package() {
+    cd "${pkgname}-${pkgver}"
+    
+    python -m pip install --prefix=/usr --root="${pkgdir}" .
+    
+    install -Dm644 config/orionos-display-optimization.conf "${pkgdir}/etc/orionos/display-optimization.conf"
+    install -Dm644 systemd/orionos-display-optimized.service "${pkgdir}/usr/lib/systemd/user/orionos-display-optimized.service"
+    install -Dm644 desktop/orionos-display-optimization.desktop "${pkgdir}/usr/share/applications/orionos-display-optimization.desktop"
+    install -Dm755 scripts/orionos-display-optimization-launcher "${pkgdir}/usr/bin/orionos-display-optimization-launcher"
+}

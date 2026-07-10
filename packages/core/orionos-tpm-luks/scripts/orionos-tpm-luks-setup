@@ -1,0 +1,158 @@
+#!/bin/bash
+# OrionOS TPM + LUKS Auto-Setup
+# Automatically configures LUKS2 encryption bound to TPM2
+set -euo pipefail
+
+CONFIG_FILE="/etc/orionos/tpm-luks.conf"
+LOG_FILE="/var/log/orionos/tpm-luks.log"
+
+log_info() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $*" | tee -a "$LOG_FILE"; }
+log_error() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*" | tee -a "$LOG_FILE" >&2; }
+
+check_root() {
+    if [[ $EUID -ne 0 ]]; then
+        log_error "Must be run as root"
+        exit 1
+    fi
+}
+
+check_tpm() {
+    if ! command -v tpm2_getcap &>/dev/null; then
+        log_error "tpm2-tools not installed"
+        exit 1
+    fi
+    if ! tpm2_getcap properties-fixed &>/dev/null; then
+        log_error "TPM 2.0 not detected"
+        exit 1
+    fi
+    log_info "TPM 2.0 detected"
+}
+
+get_luks_device() {
+    local device=""
+    for dev in /dev/sd* /dev/nvme*; do
+        if [[ -b "$dev" ]] && cryptsetup isLuks "$dev" 2>/dev/null; then
+            device="$dev"
+            break
+        fi
+    done
+    echo "$device"
+}
+
+enroll_tpm() {
+    local device="$1"
+    local pcr_policy="${2:-sha256:0,1,2,3,7}"
+
+    log_info "Enrolling TPM2 for $device with PCR policy: $pcr_policy"
+    systemd-cryptenroll "$device" --tpm2-device=auto --tpm2-pcrs="$pcr_policy"
+    log_info "TPM2 enrollment complete"
+}
+
+enroll_pin() {
+    local device="$1"
+    log_info "Enrolling PIN fallback for $device"
+    systemd-cryptenroll "$device" --pin
+    log_info "PIN enrollment complete"
+}
+
+setup_autounlock() {
+    local device="$1"
+
+    log_info "Setting up automatic unlock for $device"
+    local root_dev
+    root_dev=$(findmnt -n -o SOURCE /)
+
+    if [[ "$root_dev" == "$device"* ]]; then
+        log_info "Root device detected: $root_dev"
+    fi
+
+    log_info "Adding TPM2 unlock to initramfs..."
+    if [[ -f /etc/mkinitcpio.conf ]]; then
+        if ! grep -q "systemd-cryptenroll" /etc/mkinitcpio.conf; then
+            log_info "Run 'mkinitcpio -P' after reboot to apply changes"
+        fi
+    fi
+}
+
+backup_keys() {
+    local device="$1"
+    local backup_dir="/var/lib/orionos/tpm-luks/backup"
+    mkdir -p "$backup_dir"
+
+    log_info "Backing up LUKS headers..."
+    cryptsetup luksHeaderBackup "$device" --header-backup-file "$backup_dir/$(basename "$device")_header.bak"
+    chmod 600 "$backup_dir"/*.bak
+    log_info "Headers backed up to $backup_dir"
+}
+
+main() {
+    local action="${1:-setup}"
+    check_root
+
+    mkdir -p "$(dirname "$LOG_FILE")"
+
+    case "$action" in
+        setup)
+            log_info "Starting TPM + LUKS setup..."
+            check_tpm
+
+            local device
+            device=$(get_luks_device)
+            if [[ -z "$device" ]]; then
+                log_error "No LUKS device found"
+                exit 1
+            fi
+
+            log_info "Found LUKS device: $device"
+            backup_keys "$device"
+            enroll_tpm "$device"
+            setup_autounlock "$device"
+
+            log_info "TPM + LUKS setup complete"
+            ;;
+        enroll)
+            check_tpm
+            local device
+            device=$(get_luks_device)
+            if [[ -z "$device" ]]; then
+                log_error "No LUKS device found"
+                exit 1
+            fi
+            enroll_tpm "$device"
+            ;;
+        pin)
+            local device
+            device=$(get_luks_device)
+            if [[ -z "$device" ]]; then
+                log_error "No LUKS device found"
+                exit 1
+            fi
+            enroll_pin "$device"
+            ;;
+        backup)
+            local device
+            device=$(get_luks_device)
+            if [[ -z "$device" ]]; then
+                log_error "No LUKS device found"
+                exit 1
+            fi
+            backup_keys "$device"
+            ;;
+        status)
+            local device
+            device=$(get_luks_device)
+            if [[ -z "$device" ]]; then
+                log_info "No LUKS device found"
+                exit 0
+            fi
+            log_info "LUKS device: $device"
+            cryptsetup luksDump "$device"
+            ;;
+        *)
+            echo "Usage: $0 {setup|enroll|pin|backup|status}"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

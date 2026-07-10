@@ -1,0 +1,110 @@
+# Maintainer: Yousef Elsharkawy <yousefelsharkawy26@gmail.com>
+pkgname=orionos-software-center
+pkgver=0.2.0
+pkgrel=1
+pkgdesc="OrionOS Software Center - Package management GUI for pacman, Flatpak, and AppImage"
+arch=('x86_64')
+url="https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro"
+license=('GPL3')
+depends=(
+    'qt6-base'
+    'qt6-declarative'
+    'qt6-quickcontrols2'
+    'qt6-quickcontrols'
+    'qt6-graphicaleffects'
+    'qt6-svg'
+    'qt6-webengine'
+    'pacman'
+    'flatpak'
+    'appimaged'
+    'python'
+    'python-pyqt6'
+    'python-requests'
+    'python-beautifulsoup4'
+    'python-lxml'
+    'libpam'
+    'polkit-qt6'
+    'kconfig'
+    'kcoreaddons'
+    'ki18n'
+    'kiconthemes'
+    'kio'
+    'kitemmodels'
+    'knotifications'
+    'kwidgetsaddons'
+    'kxmlgui'
+    'orionos-themes'
+)
+makedepends=(
+    'cmake'
+    'extra-cmake-modules'
+    'qt6-tools'
+    'git'
+)
+optdepends=(
+    'packagekit-qt6: PackageKit backend support'
+    'discover: Alternative software center'
+)
+conflicts=('orionos-software-center-git')
+provides=('orionos-software-center')
+source=(
+    "${pkgname}-${pkgver}.tar.gz::https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro/releases/download/${pkgver}/${pkgname}-${pkgver}.tar.gz"
+    "orionos-software-center.desktop"
+    "orionos-software-center.svg"
+)
+sha256sums=(
+    'SKIP'
+    'SKIP'
+    'SKIP'
+)
+
+prepare() {
+    cd "${pkgname}-${pkgver}"
+    
+    # Create build directory
+    mkdir -p build
+}
+
+build() {
+    cd "${pkgname}-${pkgver}/build"
+    
+    cmake -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=/usr \
+          -DCMAKE_INSTALL_LIBDIR=lib \
+          -DQT6=ON \
+          -DBUILD_TESTING=OFF \
+          ..
+    
+    make
+}
+
+package() {
+    cd "${pkgname}-${pkgver}/build"
+    
+    # Install binary
+    make DESTDIR="${pkgdir}" install
+    
+    # Install desktop file
+    install -Dm644 "${srcdir}/orionos-software-center.desktop" \
+        "${pkgdir}/usr/share/applications/orionos-software-center.desktop"
+    
+    # Install icon
+    install -Dm644 "${srcdir}/orionos-software-center.svg" \
+        "${pkgdir}/usr/share/icons/hicolor/scalable/apps/orionos-software-center.svg"
+    
+    # Install polkit policy
+    install -Dm644 "${srcdir}/${pkgname}-${pkgver}/data/org.orionos.softwarecenter.policy" \
+        "${pkgdir}/usr/share/polkit-1/actions/org.orionos.softwarecenter.policy"
+    
+    # Install systemd service
+    install -Dm644 "${srcdir}/${pkgname}-${pkgver}/data/orionos-software-center.service" \
+        "${pkgdir}/usr/lib/systemd/user/orionos-software-center.service"
+    
+    # Install AppImage integration
+    install -Dm755 "${srcdir}/${pkgname}-${pkgver}/scripts/orionos-appimage-integration" \
+        "${pkgdir}/usr/bin/orionos-appimage-integration"
+    
+    # Install Flatpak integration
+    install -Dm755 "${srcdir}/${pkgname}-${pkgver}/scripts/orionos-flatpak-integration" \
+        "${pkgdir}/usr/bin/orionos-flatpak-integration"
+}

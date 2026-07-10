@@ -1,0 +1,14 @@
+#!/bin/bash
+# OrionOS Installer Launcher
+# Starts Calamares with OrionOS configuration
+
+# Check if Calamares is installed
+if ! command -v calamares &>/dev/null; then
+    echo "Error: Calamares is not installed."
+    echo "Please install Calamares first:"
+    echo "  sudo pacman -S calamares"
+    exit 1
+fi
+
+# Start Calamares with OrionOS configuration
+calamares -d -c "${CONFIG_DIR}/settings.conf"

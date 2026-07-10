@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=OrionOS Game Optimization
+Comment=Advanced game auto-optimization and performance tuning
+Exec=orionos-game-optimize-launcher
+Icon=orionos-game-optimize
+Terminal=false
+Type=Application
+Categories=Utility;System;
+StartupNotify=true
+Keywords=game;optimization;performance;gpu;cpu;

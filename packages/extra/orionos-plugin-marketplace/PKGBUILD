@@ -1,0 +1,42 @@
+# Maintainer: Yousef Elsharkawy <yousefelsharkawy26@gmail.com>
+pkgname=orionos-plugin-marketplace
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="OrionOS Plugin Marketplace - Discover and install plugins for OrionOS"
+arch=('x86_64')
+url="https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro"
+license=('GPL3')
+depends=(
+    'python'
+    'python-requests'
+    'python-yaml'
+    'python-jsonschema'
+    'qt6-base'
+    'qt6-declarative'
+)
+makedepends=(
+    'cmake'
+    'qt6-base'
+    'qt6-declarative'
+)
+conflicts=('orionos-plugin-marketplace-git')
+provides=('orionos-plugin-marketplace')
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro/releases/download/${pkgver}/${pkgname}-${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+    cd "${pkgname}-${pkgver}"
+    mkdir -p build && cd build
+    cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
+    make
+}
+
+package() {
+    cd "${pkgname}-${pkgver}/build"
+    make DESTDIR="${pkgdir}" install
+
+    install -Dm644 ../config/orionos-plugin-marketplace.conf "${pkgdir}/etc/orionos/plugin-marketplace.conf"
+    install -Dm644 ../desktop/orionos-plugin-marketplace.desktop "${pkgdir}/usr/share/applications/orionos-plugin-marketplace.desktop"
+    install -Dm755 ../scripts/orionos-plugin-manager "${pkgdir}/usr/bin/orionos-plugin-manager"
+    install -Dm755 ../src/orionos_plugin_manager.py "${pkgdir}/usr/lib/orionos/plugin-marketplace/orionos_plugin_manager.py"
+}

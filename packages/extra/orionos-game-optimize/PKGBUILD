@@ -1,0 +1,60 @@
+# Maintainer: Yousef Elsharkawy <yousefelsharkawy26@gmail.com>
+pkgname=orionos-game-optimize
+pkgver=0.2.0
+pkgrel=1
+pkgdesc="OrionOS Game Optimization - Advanced game auto-optimization and performance tuning"
+arch=('x86_64')
+url="https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro"
+license=('GPL3')
+depends=(
+    'python'
+    'python-psutil'
+    'python-gpustat'
+    'python-pyamdgpu'
+    'python-inotify'
+    'gamemode'
+    'mangohud'
+    'gamescope'
+    'vkBasalt'
+    'dxvk'
+    'vkd3d-proton'
+    'lib32-gamemode'
+    'lib32-mangohud'
+    'lib32-vkbasalt'
+)
+makedepends=(
+    'python-setuptools'
+    'python-wheel'
+)
+optdepends=(
+    'nvidia-utils: NVIDIA GPU optimization'
+    'lib32-nvidia-utils: 32-bit NVIDIA support'
+    'vulkan-radeon: AMD GPU optimization'
+    'lib32-vulkan-radeon: 32-bit AMD support'
+)
+conflicts=('orionos-game-optimize-git')
+provides=('orionos-game-optimize')
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro/releases/download/${pkgver}/${pkgname}-${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+prepare() {
+    cd "${pkgname}-${pkgver}"
+    mkdir -p build
+}
+
+build() {
+    cd "${pkgname}-${pkgver}/build"
+    python -m pip install --prefix=/usr --root="${pkgdir}" ..
+}
+
+package() {
+    cd "${pkgname}-${pkgver}"
+    
+    python -m pip install --prefix=/usr --root="${pkgdir}" .
+    
+    install -Dm644 config/orionos-game-optimize.conf "${pkgdir}/etc/orionos/game-optimize.conf"
+    install -Dm644 config/game-profiles.json "${pkgdir}/etc/orionos/game-profiles.json"
+    install -Dm644 systemd/orionos-game-optimized.service "${pkgdir}/usr/lib/systemd/user/orionos-game-optimized.service"
+    install -Dm644 desktop/orionos-game-optimize.desktop "${pkgdir}/usr/share/applications/orionos-game-optimize.desktop"
+    install -Dm755 scripts/orionos-game-optimize-launcher "${pkgdir}/usr/bin/orionos-game-optimize-launcher"
+}

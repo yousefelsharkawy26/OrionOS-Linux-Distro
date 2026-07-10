@@ -1,0 +1,43 @@
+#!/bin/bash
+# OrionOS Secure Boot Key Enrollment
+set -euo pipefail
+
+KEY_DIR="/var/lib/orionos/secureboot/keys"
+LOG_FILE="/var/log/orionos/secureboot-enroll.log"
+
+log_info() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $*"; }
+log_error() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*" >&2; }
+
+if [[ $EUID -ne 0 ]]; then
+    log_error "Must be run as root"
+    exit 1
+fi
+
+if [[ ! -d "$KEY_DIR" ]]; then
+    log_error "Keys not found. Run 'orionos-secureboot-setup setup' first"
+    exit 1
+fi
+
+log_info "Enrolling Secure Boot keys into UEFI firmware..."
+
+if [[ -f "$KEY_DIR/PK/PK.der" ]]; then
+    efi-updatevar -f -K "$KEY_DIR/PK/PK.der" PK
+    log_info "Platform Key (PK) enrolled"
+fi
+
+if [[ -f "$KEY_DIR/KEK/KEK.der" ]]; then
+    efi-updatevar -f -K "$KEY_DIR/KEK/KEK.der" KEK
+    log_info "Key Exchange Key (KEK) enrolled"
+fi
+
+if [[ -f "$KEY_DIR/db/db.der" ]]; then
+    efi-updatevar -f -e -K "$KEY_DIR/db/db.der" db
+    log_info "Signature Database (db) enrolled"
+fi
+
+if [[ -f "$KEY_DIR/dbx/dbx.der" ]]; then
+    efi-updatevar -f -e -K "$KEY_DIR/dbx/dbx.der" dbx
+    log_info "Signature Blacklist (dbx) enrolled"
+fi
+
+log_info "All keys enrolled. Reboot to apply."

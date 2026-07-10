@@ -1,0 +1,11 @@
+#!/bin/bash
+# OrionOS Display Optimization Launcher
+
+# Check if display optimization is already running
+if pgrep -f "orionos_display_optimization" > /dev/null; then
+    echo "Display optimization is already running"
+    exit 0
+fi
+
+# Start display optimization daemon
+exec python3 /usr/lib/python3/site-packages/orionos_display_optimization.py --daemon "$@"

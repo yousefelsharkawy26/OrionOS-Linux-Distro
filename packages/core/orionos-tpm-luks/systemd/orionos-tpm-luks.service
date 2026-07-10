@@ -1,0 +1,14 @@
+[Unit]
+Description=OrionOS TPM + LUKS Setup
+After=local-fs.target
+ConditionPathExists=/sys/class/tpm/tpm0
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/orionos-tpm-luks-setup setup
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

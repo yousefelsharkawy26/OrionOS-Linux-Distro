@@ -1,0 +1,38 @@
+# Maintainer: Yousef Elsharkawy <yousefelsharkawy26@gmail.com>
+pkgname=orionos-secureboot
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="OrionOS Secure Boot - Full Secure Boot setup with custom key enrollment"
+arch=('x86_64')
+url="https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro"
+license=('GPL3')
+depends=(
+    'sbsigntools'
+    'efitools'
+    'efibootmgr'
+    'mokutil'
+    'openssl'
+    'tpm2-tools'
+    'shim'
+)
+makedepends=('python-setuptools')
+optdepends=(
+    'tpm2-tss: TPM support'
+    'tpm2-abrmd: TPM access daemon'
+)
+conflicts=('orionos-secureboot-git')
+provides=('orionos-secureboot')
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro/releases/download/${pkgver}/${pkgname}-${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    cd "${pkgname}-${pkgver}"
+
+    install -Dm755 scripts/orionos-secureboot-setup "${pkgdir}/usr/bin/orionos-secureboot-setup"
+    install -Dm755 scripts/orionos-secureboot-enroll "${pkgdir}/usr/bin/orionos-secureboot-enroll"
+    install -Dm755 scripts/orionos-secureboot-verify "${pkgdir}/usr/bin/orionos-secureboot-verify"
+    install -Dm755 scripts/orionos-secureboot-sign-kernel "${pkgdir}/usr/bin/orionos-secureboot-sign-kernel"
+    install -Dm644 config/secureboot.conf "${pkgdir}/etc/orionos/secureboot.conf"
+    install -Dm644 systemd/orionos-secureboot.service "${pkgdir}/usr/lib/systemd/system/orionos-secureboot.service"
+    install -Dm755 src/orionos_secureboot.py "${pkgdir}/usr/lib/orionos/secureboot/orionos_secureboot.py"
+}

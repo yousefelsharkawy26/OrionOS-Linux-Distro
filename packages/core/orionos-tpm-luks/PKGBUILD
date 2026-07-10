@@ -1,0 +1,38 @@
+# Maintainer: Yousef Elsharkawy <yousefelsharkawy26@gmail.com>
+pkgname=orionos-tpm-luks
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="OrionOS TPM + LUKS auto-setup - Hardware-backed full disk encryption"
+arch=('x86_64')
+url="https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro"
+license=('GPL3')
+depends=(
+    'tpm2-tools'
+    'tpm2-tss'
+    'cryptsetup'
+    'clevis'
+    'clevis-tpm2'
+    'systemd-cryptenroll'
+    'shim'
+    'grub'
+)
+makedepends=('python-setuptools')
+optdepends=(
+    'tpm2-abrmd: TPM access daemon'
+    'pcscd: Smart card support for TPM'
+    'tpm2-pkcs11: PKCS#11 interface for TPM'
+)
+conflicts=('orionos-tpm-luks-git')
+provides=('orionos-tpm-luks')
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro/releases/download/${pkgver}/${pkgname}-${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    cd "${pkgname}-${pkgver}"
+    install -Dm755 scripts/orionos-tpm-luks-setup "${pkgdir}/usr/bin/orionos-tpm-luks-setup"
+    install -Dm755 scripts/orionos-tpm-luks-enroll "${pkgdir}/usr/bin/orionos-tpm-luks-enroll"
+    install -Dm755 scripts/orionos-tpm-luks-status "${pkgdir}/usr/bin/orionos-tpm-luks-status"
+    install -Dm644 config/tpm-luks.conf "${pkgdir}/etc/orionos/tpm-luks.conf"
+    install -Dm644 systemd/orionos-tpm-luks.service "${pkgdir}/usr/lib/systemd/system/orionos-tpm-luks.service"
+    install -Dm755 src/orionos_tpm_luks.py "${pkgdir}/usr/lib/orionos/tpm-luks/orionos_tpm_luks.py"
+}

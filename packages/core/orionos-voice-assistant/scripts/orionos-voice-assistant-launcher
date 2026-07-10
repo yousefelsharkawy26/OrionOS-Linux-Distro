@@ -1,0 +1,11 @@
+#!/bin/bash
+# OrionOS Voice Assistant Launcher
+
+# Check if voice assistant is already running
+if pgrep -f "orionos_voice_assistant" > /dev/null; then
+    echo "Voice assistant is already running"
+    exit 0
+fi
+
+# Start voice assistant
+exec python3 /usr/lib/python3/site-packages/orionos_voice_assistant.py "$@"

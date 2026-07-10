@@ -1,0 +1,131 @@
+#!/bin/bash
+# OrionOS Flatpak Integration
+# Handles Flatpak installation and management
+
+set -euo pipefail
+
+# Function to install Flatpak
+install_flatpak() {
+    local ref="$1"
+    
+    flatpak install --assumeyes --noninteractive "${ref}"
+    echo "Installed Flatpak: ${ref}"
+}
+
+# Function to remove Flatpak
+remove_flatpak() {
+    local ref="$1"
+    
+    flatpak uninstall --assumeyes --noninteractive "${ref}"
+    echo "Removed Flatpak: ${ref}"
+}
+
+# Function to update Flatpak
+update_flatpak() {
+    local ref="$1"
+    
+    if [[ -z "${ref}" ]]; then
+        flatpak update --assumeyes --noninteractive
+        echo "Updated all Flatpaks"
+    else
+        flatpak update --assumeyes --noninteractive "${ref}"
+        echo "Updated Flatpak: ${ref}"
+    fi
+}
+
+# Function to add remote
+add_remote() {
+    local name="$1"
+    local url="$2"
+    
+    flatpak remote-add --if-not-exists "${name}" "${url}"
+    echo "Added Flatpak remote: ${name}"
+}
+
+# Function to remove remote
+remove_remote() {
+    local name="$1"
+    
+    flatpak remote-delete "${name}"
+    echo "Removed Flatpak remote: ${name}"
+}
+
+# Function to list remotes
+list_remotes() {
+    flatpak remotes --columns=name,title,url
+}
+
+# Function to list installed
+list_installed() {
+    flatpak list --columns=application,origin,version,branch
+}
+
+# Function to list available
+list_available() {
+    flatpak remote-ls --columns=application,description,version,branch
+}
+
+# Main logic
+case "${1:-}" in
+    --install)
+        if [[ -n "${2:-}" ]]; then
+            install_flatpak "$2"
+        else
+            echo "Usage: $0 --install <ref>"
+            exit 1
+        fi
+        ;;
+    --remove)
+        if [[ -n "${2:-}" ]]; then
+            remove_flatpak "$2"
+        else
+            echo "Usage: $0 --remove <ref>"
+            exit 1
+        fi
+        ;;
+    --update)
+        if [[ -n "${2:-}" ]]; then
+            update_flatpak "$2"
+        else
+            update_flatpak
+        fi
+        ;;
+    --add-remote)
+        if [[ -n "${2:-}" && -n "${3:-}" ]]; then
+            add_remote "$2" "$3"
+        else
+            echo "Usage: $0 --add-remote <name> <url>"
+            exit 1
+        fi
+        ;;
+    --remove-remote)
+        if [[ -n "${2:-}" ]]; then
+            remove_remote "$2"
+        else
+            echo "Usage: $0 --remove-remote <name>"
+            exit 1
+        fi
+        ;;
+    --list-remotes)
+        list_remotes
+        ;;
+    --list-installed)
+        list_installed
+        ;;
+    --list-available)
+        list_available
+        ;;
+    *)
+        echo "OrionOS Flatpak Integration"
+        echo "Usage:"
+        echo "  $0 --install <ref>            Install a Flatpak"
+        echo "  $0 --remove <ref>            Remove a Flatpak"
+        echo "  $0 --update [ref]           Update Flatpak(s)"
+        echo "  $0 --add-remote <name> <url> Add a remote"
+        echo "  $0 --remove-remote <name>   Remove a remote"
+        echo "  $0 --list-remotes           List remotes"
+        echo "  $0 --list-installed         List installed Flatpaks"
+        echo "  $0 --list-available         List available Flatpaks"
+        exit 1
+        ;;
+esac

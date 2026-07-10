@@ -1,0 +1,12 @@
+[Unit]
+Description=OrionOS Calamares Installer
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/calamares -d
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,67 @@
+# OrionOS Calamares Branding
+# Custom branding for OrionOS installer
+
+componentName: orionos
+welcomeStyleCalamares: true
+welcomeExpandingLogo: false
+welcomeLogo: welcome.png
+welcomeWelcomeImage: welcome.png
+
+# Branding strings
+strings:
+  productName: "OrionOS"
+  shortProductName: "OrionOS"
+  version: "0.2.0-beta"
+  shortVersion: "0.2.0"
+  versionedName: "OrionOS 0.2.0 Beta"
+  shortVersionedName: "OrionOS 0.2.0"
+  bootloaderEntryName: "OrionOS"
+  productUrl: "https://orionos.org"
+  supportUrl: "https://forum.orionos.org"
+  bugReportUrl: "https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro/issues"
+  releaseNotesUrl: "https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro/releases"
+
+# Slide show
+showSlideShow: true
+slideShow: "show.qml"
+slideShowAPI: 2
+
+# Style
+style:
+  sidebarBackground: "#1e2030"
+  sidebarText: "#cad3f5"
+  sidebarTextSelect: "#8aadf4"
+  sidebarTextHighlight: "#8aadf4"
+  sidebarBackgroundCurrent: "#24273a"
+  
+  logo: "logo.png"
+  
+  # Button styles
+  buttonText: "#cad3f5"
+  buttonTextSelect: "#1e2030"
+  buttonBackground: "#363a4f"
+  buttonBackgroundSelect: "#8aadf4"
+  
+  # Progress bar
+  progressBarBackground: "#363a4f"
+  progressBarForeground: "#8aadf4"
+  
+  # Text input
+  textInputBackground: "#24273a"
+  textInputText: "#cad3f5"
+  textInputTextSelect: "#1e2030"
+  
+  # Checkbox/radio
+  checkboxBackground: "#363a4f"
+  checkboxCheckmark: "#8aadf4"
+  
+  # Scrollbar
+  scrollBarBackground: "#1e2030"
+  scrollBarHandle: "#6e738d"
+  scrollBarHandleHover: "#8aadf4"
+
+# Images
+images:
+  productLogo: "logo.png"
+  productWelcome: "welcome.png"
+  productIcon: "logo.svg"

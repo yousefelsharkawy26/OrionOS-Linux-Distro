@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=OrionOS Cloud Sync
+Comment=Cloud synchronization for Nextcloud, WebDAV, SFTP
+Exec=orionos-cloud-sync-launcher
+Icon=orionos-cloud-sync
+Terminal=false
+Type=Application
+Categories=Utility;Network;System;
+StartupNotify=true
+Keywords=cloud;sync;nextcloud;webdav;sftp;

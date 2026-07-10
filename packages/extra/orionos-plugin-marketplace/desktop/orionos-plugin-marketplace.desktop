@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=OrionOS Plugin Marketplace
+Comment=Discover and install plugins for OrionOS
+Exec=orionos-plugin-manager search
+Icon=orionos-plugin-marketplace
+Terminal=true
+Type=Application
+Categories=Utility;System;
+StartupNotify=true
+Keywords=plugin;marketplace;extension;addon;

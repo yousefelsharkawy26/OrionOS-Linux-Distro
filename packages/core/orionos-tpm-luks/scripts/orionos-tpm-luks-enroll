@@ -1,0 +1,31 @@
+#!/bin/bash
+# Orio nos TPM + LUKS Enrollment
+set -euo pipefail
+
+LOG_FILE="/var/log/orionos/tpm-luks.log"
+log_info() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $*"; }
+log_error() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*" >&2; }
+
+if [[ $EUID -ne 0 ]]; then
+    log_error "Must be run as root"
+    exit 1
+fi
+
+DEVICE="${1:-}"
+if [[ -z "$DEVICE" ]]; then
+    for dev in /dev/sd* /dev/nvme*; do
+        if [[ -b "$dev" ]] && cryptsetup isLuks "$dev" 2>/dev/null; then
+            DEVICE="$dev"
+            break
+        fi
+    done
+fi
+
+if [[ -z "$DEVICE" ]]; then
+    log_error "No LUKS device found"
+    exit 1
+fi
+
+log_info "Enrolling TPM2 for: $DEVICE"
+systemd-cryptenroll "$DEVICE" --tpm2-device=auto --tpm2-pcrs="sha256:0,1,2,3,7"
+log_info "Enrollment complete"

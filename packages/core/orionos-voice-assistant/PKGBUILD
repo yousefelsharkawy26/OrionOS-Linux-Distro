@@ -1,0 +1,74 @@
+# Maintainer: Yousef Elsharkawy <yousefelsharkawy26@gmail.com>
+pkgname=orionos-voice-assistant
+pkgver=0.2.0
+pkgrel=1
+pkgdesc="OrionOS Voice Assistant - Speech-to-text and text-to-speech with GPU acceleration"
+arch=('x86_64')
+url="https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro"
+license=('GPL3')
+depends=(
+    'python'
+    'python-pytorch'
+    'python-whisper'
+    'python-piper-tts'
+    'python-sounddevice'
+    'python-numpy'
+    'python-webrtcvad'
+    'python-pyaudio'
+    'sox'
+    'alsa-utils'
+    'pulseaudio'
+    'pipewire-pulse'
+    'orca'
+    'espeak-ng'
+)
+makedepends=(
+    'python-setuptools'
+    'python-wheel'
+)
+optdepends=(
+    'cuda-toolkit: GPU acceleration for NVIDIA'
+    'rocm-hip-sdk: GPU acceleration for AMD'
+)
+conflicts=('orionos-voice-assistant-git')
+provides=('orionos-voice-assistant')
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro/releases/download/${pkgver}/${pkgname}-${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+prepare() {
+    cd "${pkgname}-${pkgver}"
+    
+    # Create build directory
+    mkdir -p build
+}
+
+build() {
+    cd "${pkgname}-${pkgver}/build"
+    
+    python -m pip install --prefix=/usr --root="${pkgdir}" ..
+}
+
+package() {
+    cd "${pkgname}-${pkgver}"
+    
+    # Install Python package
+    python -m pip install --prefix=/usr --root="${pkgdir}" .
+    
+    # Install configuration files
+    install -Dm644 config/orionos-voice-assistant.conf "${pkgdir}/etc/orionos/voice-assistant.conf"
+    
+    # Install systemd service
+    install -Dm644 systemd/orionos-voice-assistant.service "${pkgdir}/usr/lib/systemd/user/orionos-voice-assistant.service"
+    
+    # Install desktop file
+    install -Dm644 desktop/orionos-voice-assistant.desktop "${pkgdir}/usr/share/applications/orionos-voice-assistant.desktop"
+    
+    # Install icons
+    install -Dm644 icons/orionos-voice-assistant.svg "${pkgdir}/usr/share/icons/hicolor/scalable/apps/orionos-voice-assistant.svg"
+    
+    # Install scripts
+    install -Dm755 scripts/orionos-voice-assistant-launcher "${pkgdir}/usr/bin/orionos-voice-assistant-launcher"
+    
+    # Install models directory
+    install -dm755 "${pkgdir}/usr/share/orionos-voice-assistant/models"
+}

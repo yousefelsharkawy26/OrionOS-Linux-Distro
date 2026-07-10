@@ -1,0 +1,3 @@
+#!/bin/bash
+# OrionOS Plugin Manager CLI
+exec python3 /usr/lib/orionos/plugin-marketplace/orionos_plugin_manager.py "$@"

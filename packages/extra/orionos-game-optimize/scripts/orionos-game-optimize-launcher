@@ -1,0 +1,11 @@
+#!/bin/bash
+# OrionOS Game Optimization Launcher
+
+# Check if game optimization is already running
+if pgrep -f "orionos_game_optimize" > /dev/null; then
+    echo "Game optimization is already running"
+    exit 0
+fi
+
+# Start game optimization daemon
+exec python3 /usr/lib/python3/site-packages/orionos_game_optimize.py --daemon "$@"

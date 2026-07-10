@@ -1,0 +1,228 @@
+#!/bin/bash
+# OrionOS Secure Boot Setup
+# Full Secure Boot setup with custom key enrollment
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_FILE="/etc/orionos/secureboot.conf"
+KEY_DIR="/var/lib/orionos/secureboot/keys"
+LOG_FILE="/var/log/orionos/secureboot-setup.log"
+
+source /usr/lib/orionos/scripts/logging.sh 2>/dev/null || true
+
+log_info() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $*" | tee -a "$LOG_FILE"; }
+log_error() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*" | tee -a "$LOG_FILE" >&2; }
+log_warn() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARN: $*" | tee -a "$LOG_FILE"; }
+
+check_root() {
+    if [[ $EUID -ne 0 ]]; then
+        log_error "This script must be run as root"
+        exit 1
+    fi
+}
+
+check_uefi() {
+    if [[ ! -d /sys/firmware/efi ]]; then
+        log_error "System is not booted in UEFI mode"
+        exit 1
+    fi
+    log_info "UEFI firmware detected"
+}
+
+check_secureboot_status() {
+    local sb_status
+    sb_status=$(mokutil --sb-state 2>/dev/null || echo "unknown")
+    log_info "Secure Boot status: $sb_status"
+    echo "$sb_status"
+}
+
+check_tpm() {
+    if command -v tpm2_getcap &>/dev/null; then
+        local tpm_enabled
+        tpm_enabled=$(tpm2_getcap properties-fixed 2>/dev/null | grep -c "TPM2_PT_FIRMWARE_VERSION" || true)
+        if [[ "$tpm_enabled" -gt 0 ]]; then
+            log_info "TPM 2.0 detected and available"
+            return 0
+        fi
+    fi
+    log_warn "TPM not detected or not available"
+    return 1
+}
+
+generate_keys() {
+    local key_dir="$1"
+    mkdir -p "$key_dir"/{PK,KEK,db,dbx}
+
+    log_info "Generating Platform Key (PK)..."
+    openssl req -new -x509 -newkey rsa:2048 -sha256 -days 3650 \
+        -nodes -x509extensions v3_cert_extensions \
+        -subj "/CN=OrionOS Platform Key (PK)/O=OrionOS/C=US" \
+        -keyout "$key_dir/PK/PK.key" \
+        -out "$key_DIR/PK/PK.crt" 2>/dev/null
+
+    openssl x509 -outform DER -in "$key_dir/PK/PK.crt" -out "$key_dir/PK/PK.der"
+    log_info "PK generated: $key_dir/PK/"
+
+    log_info "Generating Key Exchange Key (KEK)..."
+    openssl req -new -x509 -newkey rsa:2048 -sha256 -days 3650 \
+        -nodes -x509extensions v3_cert_extensions \
+        -subj "/CN=OrionOS Key Exchange Key (KEK)/O=OrionOS/C=US" \
+        -keyout "$key_dir/KEK/KEK.key" \
+        -out "$key_dir/KEK/KEK.crt" 2>/dev/null
+
+    openssl x509 -outform DER -in "$key_dir/KEK/KEK.crt" -out "$key_dir/KEK/KEK.der"
+    log_info "KEK generated: $key_dir/KEK/"
+
+    log_info "Generating Signature Database key (db)..."
+    openssl req -new -x509 -newkey rsa:2048 -sha256 -days 3650 \
+        -nodes -x509extensions v3_cert_extensions \
+        -subj "/CN=OrionOS Signature Database (db)/O=OrionOS/C=US" \
+        -keyout "$key_dir/db/db.key" \
+        -out "$key_dir/db/db.crt" 2>/dev/null
+
+    openssl x509 -outform DER -in "$key_dir/db/db.crt" -out "$key_dir/db/db.der"
+    log_info "db generated: $key_dir/db/"
+
+    log_info "Generating Signature Blacklist key (dbx)..."
+    openssl req -new -x509 -newkey rsa:2048 -sha256 -days 3650 \
+        -nodes -x509extensions v3_cert_extensions \
+        -subj "/CN=OrionOS Signature Blacklist (dbx)/O=OrionOS/C=US" \
+        -keyout "$key_dir/dbx/dbx.key" \
+        -out "$key_dir/dbx/dbx.crt" 2>/dev/null
+
+    openssl x509 -outform DER -in "$key_dir/dbx/dbx.crt" -out "$key_dir/dbx/dbx.der"
+    log_info "dbx generated: $key_dir/dbx/"
+
+    chmod 600 "$key_dir"/**/*.key
+    log_info "All Secure Boot keys generated successfully"
+}
+
+sign_shim() {
+    local key_dir="$1"
+
+    log_info "Signing Shim bootloader..."
+    sbsign --key "$key_dir/db/db.key" \
+           --cert "$key_dir/db/db.crt" \
+           --output /boot/efi/BOOT/BOOTX64.EFI.signed \
+           /boot/efi/BOOT/BOOTX64.EFI
+
+    log_info "Shim signed successfully"
+}
+
+setup_mok() {
+    log_info "Setting up Machine Owner Key (MOK)..."
+    local mok_dir="/var/lib/orionos/secureboot/mok"
+    mkdir -p "$mok_dir"
+
+    openssl req -new -x509 -newkey rsa:2048 -sha256 -days 3650 \
+        -nodes -subj "/CN=OrionOS MOK/O=OrionOS/C=US" \
+        -keyout "$mok_dir/MOK.key" \
+        -out "$mok_dir/MOK.crt" 2>/dev/null
+
+    log_info "MOK generated. Enroll with: mokutil --import $mok_dir/MOK.crt"
+    log_info "A reboot is required to complete MOK enrollment"
+}
+
+enroll_keys_efi() {
+    local key_dir="$1"
+
+    log_info "Enrolling keys in UEFI firmware..."
+    efi-updatevar -f -K "$key_dir/PK/PK.der" PK
+    efi-updatevar -f -K "$key_dir/KEK/KEK.der" KEK
+    efi-updatevar -f -e -K "$key_dir/db/db.der" db
+    efi-updatevar -f -e -K "$key_dir/dbx/dbx.der" dbx
+
+    log_info "All keys enrolled in UEFI firmware"
+}
+
+sign_kernel() {
+    local kernel_image="$1"
+    local key_dir="${2:-$KEY_DIR}"
+
+    if [[ ! -f "$kernel_image" ]]; then
+        log_error "Kernel image not found: $kernel_image"
+        return 1
+    fi
+
+    log_info "Signing kernel: $kernel_image"
+    sbsign --key "$key_dir/db/db.key" \
+           --cert "$key_dir/db/db.crt" \
+           --output "${kernel_image}.signed" \
+           "$kernel_image"
+
+    mv "${kernel_image}.signed" "$kernel_image"
+    log_info "Kernel signed successfully: $kernel_image"
+}
+
+sign_all_kernels() {
+    local key_dir="$1"
+
+    log_info "Signing all installed kernels..."
+    for kernel in /boot/vmlinuz-linux*; do
+        if [[ -f "$kernel" ]]; then
+            sign_kernel "$kernel" "$key_dir"
+        fi
+    done
+
+    log_info "All kernels signed"
+}
+
+verify_secureboot() {
+    log_info "Verifying Secure Boot configuration..."
+
+    local status
+    status=$(check_secureboot_status)
+
+    if [[ "$status" == *"enabled"* ]]; then
+        log_info "Secure Boot is ENABLED"
+    else
+        log_warn "Secure Boot is not enabled"
+        log_info "Enable Secure Boot in UEFI settings"
+    fi
+
+    if check_tpm; then
+        log_info "TPM is available for key storage"
+    fi
+}
+
+main() {
+    local action="${1:-setup}"
+
+    check_root
+    check_uefi
+
+    mkdir -p "$(dirname "$LOG_FILE")"
+
+    case "$action" in
+        setup)
+            log_info "Starting Secure Boot setup..."
+            generate_keys "$KEY_DIR"
+            setup_mok
+            verify_secureboot
+            log_info "Secure Boot setup complete. Reboot to apply."
+            ;;
+        enroll)
+            log_info "Enrolling keys..."
+            enroll_keys_efi "$KEY_DIR"
+            ;;
+        sign-kernel)
+            if [[ -z "${2:-}" ]]; then
+                log_error "Usage: $0 sign-kernel <kernel-image>"
+                exit 1
+            fi
+            sign_kernel "$2"
+            ;;
+        sign-all)
+            sign_all_kernels "$KEY_DIR"
+            ;;
+        verify)
+            verify_secureboot
+            ;;
+        *)
+            echo "Usage: $0 {setup|enroll|sign-kernel|sign-all|verify}"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

@@ -1,0 +1,15 @@
+[Unit]
+Description=OrionOS Secure Boot Setup
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/sys/firmware/efi
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/orionos-secureboot-setup verify
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

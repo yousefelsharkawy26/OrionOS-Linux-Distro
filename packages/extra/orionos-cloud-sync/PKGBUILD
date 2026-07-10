@@ -1,0 +1,51 @@
+# Maintainer: Yousef Elsharkawy <yousefelsharkawy26@gmail.com>
+pkgname=orionos-cloud-sync
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="OrionOS Cloud Sync GUI - Cloud synchronization for Nextcloud, WebDAV, SFTP"
+arch=('x86_64')
+url="https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro"
+license=('GPL3')
+depends=(
+    'qt6-base'
+    'qt6-declarative'
+    'qt6-webengine'
+    'python'
+    'python-requests'
+    'python-webdavclient3'
+    'rsync'
+    'rclone'
+    'nextcloud-client'
+)
+makedepends=(
+    'cmake'
+    'qt6-base'
+    'qt6-declarative'
+)
+optdepends=(
+    'nextcloud-desktop: Nextcloud integration'
+    'rclone-browser: Rclone GUI'
+    'sshfs: SSH filesystem mounting'
+)
+conflicts=('orionos-cloud-sync-git')
+provides=('orionos-cloud-sync')
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro/releases/download/${pkgver}/${pkgname}-${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+    cd "${pkgname}-${pkgver}"
+    mkdir -p build
+    cd build
+    cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
+    make
+}
+
+package() {
+    cd "${pkgname}-${pkgver}/build"
+    make DESTDIR="${pkgdir}" install
+
+    install -Dm644 ../config/orionos-cloud-sync.conf "${pkgdir}/etc/orionos/cloud-sync.conf"
+    install -Dm644 ../desktop/orionos-cloud-sync.desktop "${pkgdir}/usr/share/applications/orionos-cloud-sync.desktop"
+    install -Dm644 ../systemd/orionos-cloud-sync.service "${pkgdir}/usr/lib/systemd/user/orionos-cloud-sync.service"
+    install -Dm755 ../scripts/orionos-cloud-sync-launcher "${pkgdir}/usr/bin/orionos-cloud-sync-launcher"
+}

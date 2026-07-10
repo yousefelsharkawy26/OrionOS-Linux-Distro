@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=OrionOS Display Optimization
+Comment=HDR, VRR, and display improvements
+Exec=orionos-display-optimization-launcher
+Icon=orionos-display-optimization
+Terminal=false
+Type=Application
+Categories=Utility;System;
+StartupNotify=true
+Keywords=display;hdr;vrr;refresh;color;

@@ -1,0 +1,137 @@
+# Maintainer: Yousef Elsharkawy <yousefelsharkawy26@gmail.com>
+pkgname=calamares-orionos
+pkgver=3.3.5
+pkgrel=1
+pkgdesc="OrionOS customized Calamares installer"
+arch=('x86_64')
+url="https://github.com/calamares/calamares"
+license=('GPL3')
+depends=(
+    'qt6-base'
+    'qt6-declarative'
+    'qt6-svg'
+    'qt6-quickcontrols2'
+    'qt6-quickcontrols'
+    'qt6-graphicaleffects'
+    'qt6-location'
+    'qt6-positioning'
+    'qt6-webengine'
+    'yaml-cpp'
+    'boost-libs'
+    'kpmcore'
+    'kconfig'
+    'kcoreaddons'
+    'ki18n'
+    'kparts'
+    'kiconthemes'
+    'kio'
+    'solid'
+    'kwidgetsaddons'
+    'kpackage'
+    'polkit-qt6'
+    'hicolor-icon-theme'
+    'python'
+    'python-yaml'
+    'python-pyqt6'
+    'parted'
+    'btrfs-progs'
+    'dosfstools'
+    'e2fsprogs'
+    'grub'
+    'efibootmgr'
+    'os-prober'
+    'networkmanager'
+    'systemd'
+    'pacman'
+    'archlinux-keyring'
+    'orionos-config'
+    'orionos-desktop'
+    'orionos-themes'
+)
+makedepends=(
+    'cmake'
+    'extra-cmake-modules'
+    'qt6-tools'
+    'boost'
+    'git'
+)
+conflicts=('calamares')
+provides=('calamares')
+options=('!emptydirs')
+source=(
+    "https://github.com/calamares/calamares/archive/refs/tags/v${pkgver}.tar.gz"
+    "calamares-orionos-branding.tar.gz::https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro/releases/download/branding/calamares-orionos-branding-v1.tar.gz"
+    "calamares-orionos-settings.tar.gz::https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro/releases/download/branding/calamares-orionos-settings-v1.tar.gz"
+)
+sha256sums=(
+    'SKIP'
+    'SKIP'
+    'SKIP'
+)
+
+prepare() {
+    cd "calamares-${pkgver}"
+    
+    # Apply OrionOS branding
+    tar -xzf "${srcdir}/calamares-orionos-branding.tar.gz" -C src/branding/
+    
+    # Apply OrionOS settings
+    tar -xzf "${srcdir}/calamares-orionos-settings.tar.gz" -C .
+}
+
+build() {
+    cd "calamares-${pkgver}"
+    
+    cmake -B build -S . \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DWITH_PYTHONQT=ON \
+        -DWITH_QML=ON \
+        -DWITH_QT6=ON \
+        -DBUILD_TESTING=OFF \
+        -DINSTALL_CONFIG=ON \
+        -DINSTALL_SETTINGS=ON
+    
+    cmake --build build
+}
+
+package() {
+    cd "calamares-${pkgver}"
+    
+    # Install Calamares
+    DESTDIR="${pkgdir}" cmake --install build
+    
+    # Install OrionOS branding and settings
+    install -Dm644 "${srcdir}/calamares-orionos-branding/branding.desc" \
+        "${pkgdir}/usr/share/calamares/branding/orionos/branding.desc"
+    
+    cp -r "${srcdir}/calamares-orionos-branding/"* \
+        "${pkgdir}/usr/share/calamares/branding/orionos/"
+    
+    cp -r "${srcdir}/calamares-orionos-settings/"* \
+        "${pkgdir}/usr/share/calamares/settings/"
+    
+    # Install systemd service
+    install -Dm644 "${srcdir}/calamares-orionos-settings/calamares.service" \
+        "${pkgdir}/usr/lib/systemd/system/calamares.service"
+    
+    # Install desktop file
+    install -Dm644 "${srcdir}/calamares-orionos-settings/calamares.desktop" \
+        "${pkgdir}/usr/share/applications/calamares.desktop"
+    
+    # Install OrionOS modules
+    install -Dm644 "${srcdir}/calamares-orionos-settings/modules/orionos.conf" \
+        "${pkgdir}/usr/share/calamares/modules/orionos.conf"
+    
+    install -Dm644 "${srcdir}/calamares-orionos-settings/modules/orionos-postinstall.conf" \
+        "${pkgdir}/usr/share/calamares/modules/orionos-postinstall.conf"
+    
+    # Install OrionOS welcome image
+    install -Dm644 "${srcdir}/calamares-orionos-branding/welcome.png" \
+        "${pkgdir}/usr/share/calamares/branding/orionos/welcome.png"
+    
+    # Install OrionOS style
+    install -Dm644 "${srcdir}/calamares-orionos-branding/style.css" \
+        "${pkgdir}/usr/share/calamares/branding/orionos/style.css"
+}

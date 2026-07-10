@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+"""
+OrionOS Snapshot Setup
+Creates initial Btrfs snapshots
+"""
+
+import subprocess
+from pathlib import Path
+
+def setup_snapshots():
+    """Create initial Btrfs snapshots"""
+    root_mount = "/tmp/calamares-root"
+    
+    # Create initial snapshot
+    subprocess.run([
+        "btrfs", "subvolume", "snapshot", "-r", 
+        f"{root_mount}", f"{root_mount}/.snapshots/initial-install"
+    ], check=True)
+
+if __name__ == "__main__":
+    setup_snapshots()

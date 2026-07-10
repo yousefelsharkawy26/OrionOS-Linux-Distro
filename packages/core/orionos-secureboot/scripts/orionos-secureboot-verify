@@ -1,0 +1,71 @@
+#!/bin/bash
+# OrionOS Secure Boot Verification
+set -euo pipefail
+
+LOG_FILE="/var/log/orionos/secureboot-verify.log"
+
+log_info() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $*"; }
+log_warn() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARN: $*"; }
+log_error() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*"; }
+
+echo "=== OrionOS Secure Boot Verification ==="
+echo ""
+
+echo "--- UEFI Firmware ---"
+if [[ -d /sys/firmware/efi ]]; then
+    echo "  UEFI mode: YES"
+else
+    echo "  UEFI mode: NO"
+    exit 1
+fi
+
+echo ""
+echo "--- Secure Boot Status ---"
+if command -v mokutil &>/dev/null; then
+    sb_state=$(mokutil --sb-state 2>/dev/null || echo "unknown")
+    echo "  Status: $sb_state"
+else
+    echo "  Status: mokutil not installed"
+fi
+
+echo ""
+echo "--- TPM Status ---"
+if command -v tpm2_getcap &>/dev/null; then
+    if tpm2_getcap properties-fixed &>/dev/null; then
+        echo "  TPM 2.0: Available"
+    else
+        echo "  TPM 2.0: Not available"
+    fi
+else
+    echo "  TPM 2.0: tpm2-tools not installed"
+fi
+
+echo ""
+echo "--- Signed Boot Files ---"
+for kernel in /boot/vmlinuz-linux*; do
+    if [[ -f "$kernel" ]]; then
+        if sbverify --cert /var/lib/orionos/secureboot/keys/db/db.crt "$kernel" &>/dev/null; then
+            echo "  $kernel: SIGNED"
+        else
+            echo "  $kernel: NOT SIGNED"
+        fi
+    fi
+done
+
+echo ""
+echo "--- Key Enrollment ---"
+KEY_DIR="/var/lib/orionos/secureboot/keys"
+if [[ -d "$KEY_DIR" ]]; then
+    for key in PK KEK db dbx; do
+        if [[ -f "$KEY_DIR/$key/$key.der" ]]; then
+            echo "  $key: Generated"
+        else
+            echo "  $key: NOT generated"
+        fi
+    done
+else
+    echo "  Keys directory not found"
+fi
+
+echo ""
+echo "=== Verification Complete ==="

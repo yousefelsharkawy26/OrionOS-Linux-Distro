@@ -1,0 +1,51 @@
+[package]
+name = "orionos-phone-sync"
+version = "0.2.0"
+edition = "2021"
+authors = ["Yousef Elsharkawy <yousefelsharkawy26@gmail.com>"]
+description = "OrionOS Phone Sync - Cross-device synchronization service"
+license = "GPL-3.0"
+readme = "README.md"
+repository = "https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro"
+
+[[bin]]
+name = "orionos-phone-sync"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+prost = "0.12"
+prost-types = "0.12"
+tonic = { version = "0.12", features = ["tls"] }
+uuid = { version = "1", features = ["v4"] }
+bluez = "0.1"
+zbus = { version = "4", features = ["tokio"] }
+notify-rust = "4"
+dirs = "5"
+keyring = "2"
+aes-gcm = "0.10"
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+reqwest = { version = "0.12", features = ["json"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1"
+thiserror = "1"
+chrono = { version = "0.4", features = ["serde"] }
+base64 = "0.22"
+rand = "0.8"
+tokio-stream = "0.1"
+async-trait = "0.1"
+
+[build-dependencies]
+tonic-build = "0.12"
+
+[features]
+default = ["cloud"]
+cloud = ["reqwest/native-tls"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
