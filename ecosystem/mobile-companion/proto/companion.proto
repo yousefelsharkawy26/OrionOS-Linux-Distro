@@ -1,0 +1,146 @@
+syntax = "proto3";
+package orionos.mobile.companion;
+option go_package = "github.com/yousefelsharkawy26/OrionOS-Linux-Distro/ecosystem/mobile-companion/proto";
+
+service CompanionService {
+    rpc PairDevice(PairRequest) returns (PairResponse);
+    rpc SyncClipboard(ClipboardData) returns (ClipboardAck);
+    rpc TransferFile(stream FileChunk) returns (FileTransferResponse);
+    rpc SendNotification(Notification) returns (NotificationAck);
+    rpc ControlMedia(MediaCommand) returns (MediaResponse);
+    rpc SendSMS(SMSMessage) returns (SMSResponse);
+    rpc StreamScreen(ScreenRequest) returns (stream ScreenFrame);
+    rpc RemoteInput(RemoteEvent) returns (RemoteResponse);
+}
+
+message PairRequest {
+    string device_name = 1;
+    string device_id = 2;
+    string bluetooth_mac = 3;
+    bytes public_key = 4;
+}
+
+message PairResponse {
+    bool accepted = 1;
+    bytes session_key = 2;
+    string session_id = 3;
+}
+
+message ClipboardData {
+    string session_id = 1;
+    string content = 2;
+    string mime_type = 3;
+    int64 timestamp = 4;
+    string source_device = 5;
+}
+
+message ClipboardAck {
+    bool received = 1;
+}
+
+message FileChunk {
+    string session_id = 1;
+    string file_id = 2;
+    string filename = 3;
+    uint32 chunk_index = 4;
+    uint32 total_chunks = 5;
+    bytes data = 6;
+    int64 file_size = 7;
+    string mime_type = 8;
+}
+
+message FileTransferResponse {
+    bool success = 1;
+    string file_id = 2;
+    string saved_path = 3;
+}
+
+message Notification {
+    string session_id = 1;
+    string app_name = 2;
+    string title = 3;
+    string body = 4;
+    int64 timestamp = 5;
+    string icon = 6;
+    int32 priority = 7;
+}
+
+message NotificationAck {
+    bool received = 1;
+}
+
+message MediaCommand {
+    string session_id = 1;
+    enum Command {
+        PLAY = 0;
+        PAUSE = 1;
+        NEXT = 2;
+        PREVIOUS = 3;
+        VOLUME_UP = 4;
+        VOLUME_DOWN = 5;
+        MUTE = 6;
+        STOP = 7;
+    }
+    Command command = 2;
+    int32 volume = 3;
+}
+
+message MediaResponse {
+    bool success = 1;
+    string current_track = 2;
+    bool is_playing = 3;
+    int32 volume = 4;
+}
+
+message SMSMessage {
+    string session_id = 1;
+    string phone_number = 2;
+    string contact_name = 3;
+    string message = 4;
+    bool is_incoming = 5;
+    int64 timestamp = 6;
+}
+
+message SMSResponse {
+    bool sent = 1;
+    string message_id = 2;
+}
+
+message ScreenRequest {
+    string session_id = 1;
+    int32 quality = 2;
+    int32 fps = 3;
+    int32 width = 4;
+    int32 height = 5;
+}
+
+message ScreenFrame {
+    bytes data = 1;
+    int64 timestamp = 2;
+    int32 width = 3;
+    int32 height = 4;
+}
+
+message RemoteEvent {
+    string session_id = 1;
+    enum EventType {
+        MOUSE_MOVE = 0;
+        MOUSE_CLICK = 1;
+        MOUSE_SCROLL = 2;
+        KEY_PRESS = 3;
+        KEY_RELEASE = 4;
+        TOUCH = 5;
+        GESTURE = 6;
+    }
+    EventType type = 2;
+    int32 x = 3;
+    int32 y = 4;
+    int32 button = 5;
+    int32 key_code = 6;
+    int32 scroll_delta = 7;
+    repeated int32 touch_points = 8;
+}
+
+message RemoteResponse {
+    bool processed = 1;
+}

@@ -1,0 +1,13 @@
+[Unit]
+Description=Sunshine Game Streaming Server
+After=graphical-session.target
+Wants=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/sunshine %u
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

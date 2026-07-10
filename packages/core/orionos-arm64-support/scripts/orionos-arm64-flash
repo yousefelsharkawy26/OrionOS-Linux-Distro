@@ -1,0 +1,76 @@
+#!/bin/bash
+# OrionOS ARM64 Flash - Flash OrionOS to ARM64 devices
+set -euo pipefail
+
+BOARDS_FILE="/etc/orionos/boards.conf"
+LOG_FILE="/var/log/orionos/arm64-flash.log"
+
+log_info() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $*"; }
+log_error() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*" >&2; }
+
+check_root() {
+    [[ $EUID -eq 0 ]] || { log_error "Must be run as root"; exit 1; }
+}
+
+list_boards() {
+    echo "=== Supported ARM64 Boards ==="
+    for f in /usr/lib/orionos/arm64/devices/*.json; do
+        [[ -f "$f" ]] || continue
+        python3 -c "import json; d=json.load(open('$f')); print(f\"  {d['name']}\")" 2>/dev/null
+    done
+}
+
+flash_image() {
+    local device="$1"
+    local board="${2:-raspberry-pi-4}"
+    local image="${3:-/var/lib/orionos/arm64-build/orionos-arm64.img}"
+
+    if [[ ! -b "$device" ]]; then
+        log_error "Block device not found: $device"
+        exit 1
+    fi
+
+    if [[ ! -f "$image" ]]; then
+        log_error "Image not found: $image"
+        log_info "Build an image first with: make PROFILE=arm64 iso"
+        exit 1
+    fi
+
+    log_info "Flashing $image to $device for board: $board"
+    log_info "WARNING: All data on $device will be destroyed!"
+
+    read -p "Continue? [y/N] " -n 1 -r
+    echo
+    [[ $REPLY =~ ^[Yy]$ ]] || exit 0
+
+    umount "${device}"* 2>/dev/null || true
+    dd if="$image" of="$device" bs=4M status=progress oflag=sync
+    sync
+
+    log_info "Flash complete: $device"
+    log_info "Remove the SD card/eMMC and boot the device"
+}
+
+flash_rpi() {
+    local device="$1"
+    local image="${2:-/var/lib/orionos/arm64-build/orionos-rpi.img}"
+
+    log_info "Flashing Raspberry Pi image..."
+    flash_image "$device" "raspberry-pi-4" "$image"
+}
+
+flash_emmc() {
+    local device="$1"
+    local image="${2:-/var/lib/orionos/arm64-build/orionos-emmc.img}"
+
+    log_info "Flashing eMMC device..."
+    flash_image "$device" "odroid-n2" "$image"
+}
+
+case "${1:-}" in
+    boards)    list_boards ;;
+    rpi)       flash_rpi "${2:?Device required}" "${3:-}" ;;
+    emmc)      flash_emmc "${2:?Device required}" "${3:-}" ;;
+    flash)     flash_image "${2:?Device required}" "${3:-generic}" "${4:-}" ;;
+    *)         echo "Usage: $0 {boards|rpi|emmc|flash} <device> [board] [image]"; exit 1 ;;
+esac

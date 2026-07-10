@@ -1,0 +1,64 @@
+#!/bin/bash
+# OrionOS ARM64 Build - Cross-compile packages for ARM64
+set -euo pipefail
+
+ARCH="aarch64"
+CROSS_COMPILE="aarch64-linux-gnu-"
+BUILD_DIR="/var/lib/orionos/arm64-build"
+LOG_FILE="/var/log/orionos/arm64-build.log"
+
+log_info() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $*" | tee -a "$LOG_FILE"; }
+
+build_package() {
+    local pkgdir="$1"
+    log_info "Building package for ARM64: $pkgdir"
+
+    source /opt/orionos/arm64-cross/aarch64-env.sh
+
+    cd "$pkgdir"
+    if [[ -f Makefile ]]; then
+        make ARCH=$ARCH CROSS_COMPILE=$CROSS_COMPILE -j$(nproc)
+    elif [[ -f CMakeLists.txt ]]; then
+        mkdir -p build-arm64 && cd build-arm64
+        cmake .. \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+            -DCMAKE_C_COMPILER=${CROSS_COMPILE}gcc \
+            -DCMAKE_CXX_COMPILER=${CROSS_COMPILE}g++ \
+            -DCMAKE_INSTALL_PREFIX=/usr
+        make -j$(nproc)
+    fi
+}
+
+build_kernel() {
+    local kernel_src="${1:-/usr/src/linux}"
+    log_info "Building Linux kernel for ARM64..."
+
+    source /opt/orionos/arm64-cross/aarch64-env.sh
+    cd "$kernel_src"
+
+    make ARCH=$ARCH CROSS_COMPILE=$CROSS_COMPILE defconfig
+    make ARCH=$ARCH CROSS_COMPILE=$CROSS_COMPILE -j$(nproc) Image modules
+    make ARCH=$ARCH CROSS_COMPILE=$CROSS_COMPILE INSTALL_PATH=/boot modules_install
+
+    log_info "Kernel build complete"
+}
+
+build_initramfs() {
+    log_info "Building ARM64 initramfs..."
+    local initramfs_dir="$BUILD_DIR/initramfs"
+    mkdir -p "$initramfs_dir"
+
+    mkinitcpio -D /etc/mkinitcpio.conf -K /boot/vmlinuz-linux -k /boot/initramfs-linux.img -G 2>/dev/null || \
+    dracut --force --arch aarch64 "$initramfs_dir/initramfs.img" 2>/dev/null || \
+    log_info "initramfs: used host tools (not cross-compiled)"
+
+    log_info "initramfs built"
+}
+
+case "${1:-}" in
+    package)  build_package "${2:?Package directory required}" ;;
+    kernel)   build_kernel "${2:-}" ;;
+    initramfs) build_initramfs ;;
+    *)        echo "Usage: $0 {package|kernel|initramfs} [args]"; exit 1 ;;
+esac

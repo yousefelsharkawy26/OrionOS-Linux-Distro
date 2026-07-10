@@ -996,7 +996,7 @@ Examples:
     elif args.command == 'devices':
         devices = device_manager.get_paired_devices()
         if devices:
-            print(f"Paired devices ({len(devices}):\n")
+            print(f"Paired devices ({len(devices)}):\n")
             for dev in devices:
                 status = "🟢" if (time.time() - dev.last_seen) < 60 else "⚪"
                 print(f"  {status} {dev.name} ({dev.type})")

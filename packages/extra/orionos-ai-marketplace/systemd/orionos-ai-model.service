@@ -1,0 +1,11 @@
+[Unit]
+Description=OrionOS AI Model Service
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/ollama serve
+RemainAfterExit=no
+
+[Install]
+WantedBy=default.target

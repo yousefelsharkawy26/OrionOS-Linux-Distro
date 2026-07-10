@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=OrionOS Cloud Gaming
+Comment=Cloud gaming streaming and remote play
+Exec=orionos-cloud-gaming-stream profiles
+Icon=orionos-cloud-gaming
+Terminal=true
+Type=Application
+Categories=Utility;Game;
+StartupNotify=true
+Keywords=cloud;gaming;stream;remote;moonlight;sunshine;parsec;

@@ -1,0 +1,42 @@
+# Maintainer: Yousef Elsharkawy <yousefelsharkawy26@gmail.com>
+pkgname=orionos-arm64-support
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="OrionOS ARM64 - ARM64/aarch64 architecture support, cross-compilation, and device compatibility"
+arch=('x86_64' 'aarch64')
+url="https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro"
+license=('GPL3')
+depends=(
+    'qemu-user-static'
+    'binfmt-support'
+    'aarch64-linux-gnu-gcc'
+    'aarch64-linux-gnu-glibc'
+    'uboot-tools'
+    'device-tree-compiler'
+    'android-tools'
+)
+makedepends=(
+    'python-setuptools'
+    'cmake'
+)
+optdepends=(
+    'docker: Container-based cross-compilation'
+    'podman: Rootless cross-compilation'
+    'raspberrypi-bootloader: Raspberry Pi support'
+    'uboot-odroid-n2: ODROID-N2 support'
+)
+conflicts=('orionos-arm64-support-git')
+provides=('orionos-arm64-support')
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro/releases/download/${pkgver}/${pkgname}-${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    cd "${pkgname}-${pkgver}"
+    install -Dm755 scripts/orionos-arm64-setup "${pkgdir}/usr/bin/orionos-arm64-setup"
+    install -Dm755 scripts/orionos-arm64-build "${pkgdir}/usr/bin/orionos-arm64-build"
+    install -Dm755 scripts/orionos-arm64-flash "${pkgdir}/usr/bin/orionos-arm64-flash"
+    install -Dm644 config/arm64-support.conf "${pkgdir}/etc/orionos/arm64-support.conf"
+    install -Dm644 config/boards.conf "${pkgdir}/etc/orionos/boards.conf"
+    install -Dm644 systemd/orionos-arm64-emulation.service "${pkgdir}/usr/lib/systemd/system/orionos-arm64-emulation.service"
+    install -Dm755 src/orionos_arm64_manager.py "${pkgdir}/usr/lib/orionos/arm64/orionos_arm64_manager.py"
+}

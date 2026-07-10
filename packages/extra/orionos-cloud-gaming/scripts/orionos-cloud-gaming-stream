@@ -1,0 +1,61 @@
+#!/bin/bash
+# OrionOS Cloud Gaming Stream Manager
+set -euo pipefail
+
+CONFIG_FILE="/etc/orionos/cloud-gaming.conf"
+PROFILES_FILE="/etc/orionos/streaming-profiles.json"
+
+start_server() {
+    echo "Starting Sunshine streaming server..."
+    systemctl --user start sunshine
+    echo "Sunshine started. Connect with Moonlight."
+}
+
+stop_server() {
+    echo "Stopping Sunshine..."
+    systemctl --user stop sunshine
+}
+
+connect_moonlight() {
+    local host="${1:?Host IP required}"
+    local profile="${2:-balanced}"
+
+    echo "Connecting to $host with profile: $profile..."
+    moonlight pair "$host" 2>/dev/null || true
+    moonlight launch "$host" "Steam" 2>/dev/null || \
+    moonlight stream "$host"
+}
+
+connect_parsec() {
+    echo "Launching Parsec..."
+    parsecd 2>/dev/null &
+    echo "Parsec started"
+}
+
+stream_steam() {
+    local host="${1:-localhost}"
+    echo "Starting Steam Remote Play to $host..."
+    steam steam://open/bigpicture
+}
+
+list_profiles() {
+    echo "=== Streaming Profiles ==="
+    if [[ -f "$PROFILES_FILE" ]]; then
+        python3 -c "
+import json
+data = json.load(open('$PROFILES_FILE'))
+for name, p in data['profiles'].items():
+    print(f\"  {name:15s} {p.get('resolution', '1080p'):10s} {p.get('fps', 60)}fps  {p.get('bitrate', 'auto')} bitrate\")
+" 2>/dev/null
+    fi
+}
+
+case "${1:-}" in
+    server)     start_server ;;
+    stop)       stop_server ;;
+    connect)    connect_moonlight "${2:?Host required}" "${3:-balanced}" ;;
+    parsec)     connect_parsec ;;
+    steam)      stream_steam "${2:-localhost}" ;;
+    profiles)   list_profiles ;;
+    *)          echo "Usage: $0 {server|stop|connect|parsec|steam|profiles} [host] [profile]"; exit 1 ;;
+esac

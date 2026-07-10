@@ -1,0 +1,23 @@
+[package]
+name = "orionos-mobile-companion"
+version = "1.0.0"
+edition = "2021"
+authors = ["Yousef Elsharkawy <yousefelsharkawy26@gmail.com>"]
+description = "OrionOS Mobile Companion - Full-featured mobile device integration"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+bluer = "0.16"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.11", features = ["json", "multipart"] }
+tokio-tungstenite = "0.21"
+notify = "6"
+chrono = { version = "0.4", features = ["serde"] }
+log = "0.4"
+env_logger = "0.10"
+uuid = { version = "1", features = ["v4", "serde"] }
+base64 = "0.21"
+aes-gcm = "0.10"
+ring = "0.17"
+clap = { version = "4", features = ["derive"] }

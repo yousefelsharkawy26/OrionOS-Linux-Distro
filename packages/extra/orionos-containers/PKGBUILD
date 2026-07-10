@@ -1,0 +1,45 @@
+# Maintainer: Yousef Elsharkawy <yousefelsharkawy26@gmail.com>
+pkgname=orionos-containers
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="OrionOS Containers - Containerized applications with Docker, Podman, and Flatpak integration"
+arch=('x86_64')
+url="https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro"
+license=('GPL3')
+depends=(
+    'docker'
+    'podman'
+    'containerd'
+    'runc'
+    'crun'
+    'buildah'
+    'skopeo'
+    'distrobox'
+    'python'
+    'python-yaml'
+)
+makedepends=('python-setuptools')
+optdepends=(
+    'kubernetes: Kubernetes support'
+    'helm: Kubernetes package manager'
+    'podman-compose: Docker Compose alternative'
+    'docker-compose: Docker Compose'
+    'toolbox: Container-based development environments'
+)
+conflicts=('orionos-containers-git')
+provides=('orionos-containers')
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro/releases/download/${pkgver}/${pkgname}-${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    cd "${pkgname}-${pkgver}"
+    install -Dm755 scripts/orionos-containers-setup "${pkgdir}/usr/bin/orionos-containers-setup"
+    install -Dm755 scripts/orionos-containers-launch "${pkgdir}/usr/bin/orionos-containers-launch"
+    install -Dm755 scripts/orionos-distrobox-manager "${pkgdir}/usr/bin/orionos-distrobox-manager"
+    install -Dm644 config/containers.conf "${pkgdir}/etc/orionos/containers.conf"
+    install -Dm644 config/registries.conf "${pkgdir}/etc/orionos/registries.conf"
+    install -Dm644 systemd/orionos-containers.service "${pkgdir}/usr/lib/systemd/system/orionos-containers.service"
+    install -Dm644 systemd/orionos-podman-restart.service "${pkgdir}/usr/lib/systemd/user/orionos-podman-restart.service"
+    install -Dm644 desktop/orionos-containers.desktop "${pkgdir}/usr/share/applications/orionos-containers.desktop"
+    install -Dm755 src/orionos_containers_manager.py "${pkgdir}/usr/lib/orionos/containers/orionos_containers_manager.py"
+}

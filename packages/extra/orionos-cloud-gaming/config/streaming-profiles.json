@@ -1,0 +1,64 @@
+{
+    "profiles": {
+        "ultra": {
+            "name": "Ultra Quality",
+            "resolution": "3840x2160",
+            "fps": 120,
+            "bitrate": "100M",
+            "codec": "h265",
+            "encoder": "nvenc",
+            "hdr": true,
+            "vrr": true,
+            "min_bandwidth_mbps": 50,
+            "description": "Best quality, requires fast connection"
+        },
+        "high": {
+            "name": "High Quality",
+            "resolution": "2560x1440",
+            "fps": 90,
+            "bitrate": "50M",
+            "codec": "h264",
+            "encoder": "vaapi",
+            "hdr": false,
+            "vrr": true,
+            "min_bandwidth_mbps": 25,
+            description": "Great quality for most users"
+        },
+        "balanced": {
+            "name": "Balanced",
+            "resolution": "1920x1080",
+            "fps": 60,
+            "bitrate": "20M",
+            "codec": "h264",
+            "encoder": "auto",
+            "hdr": false,
+            "vrr": false,
+            "min_bandwidth_mbps": 10,
+            "description": "Good balance of quality and performance"
+        },
+        "performance": {
+            "name": "Performance",
+            "resolution": "1920x1080",
+            "fps": 60,
+            "bitrate": "10M",
+            "codec": "h264",
+            "encoder": "auto",
+            "hdr": false,
+            "vrr": false,
+            "min_bandwidth_mbps": 5,
+            "description": "Low latency, lower quality"
+        },
+        "mobile": {
+            "name": "Mobile",
+            "resolution": "1280x720",
+            "fps": 30,
+            "bitrate": "5M",
+            "codec": "h264",
+            "encoder": "auto",
+            "hdr": false,
+            "vrr": false,
+            "min_bandwidth_mbps": 2,
+            "description": "For mobile and low-bandwidth connections"
+        }
+    }
+}

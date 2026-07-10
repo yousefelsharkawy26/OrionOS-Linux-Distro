@@ -1,0 +1,14 @@
+{
+    "catalog_version": "1.0.0",
+    "last_updated": "2026-07-11",
+    "categories": [
+        {"id": "general", "name": "General Purpose", "description": "General chat and instruction following"},
+        {"id": "coding", "name": "Code Generation", "description": "Code writing and programming assistance"},
+        {"id": "reasoning", "name": "Reasoning", "description": "Advanced reasoning and analysis"},
+        {"id": "multilingual", "name": "Multilingual", "description": "Multi-language support"},
+        {"id": "creative", "name": "Creative", "description": "Image and content generation"},
+        {"id": "speech", "name": "Speech & Audio", "description": "Speech recognition and synthesis"},
+        {"id": "small", "name": "Small & Fast", "description": "Lightweight models for low-resource devices"}
+    ],
+    "frameworks": ["ollama", "llama.cpp", "onnx", "pytorch", "tensorflow", "tensorrt"]
+}

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=OrionOS Containers
+Comment=Manage containerized applications
+Exec=orionos-containers-launch list
+Icon=orionos-containers
+Terminal=true
+Type=Application
+Categories=Utility;System;
+StartupNotify=true
+Keywords=docker;podman;container;distrobox;

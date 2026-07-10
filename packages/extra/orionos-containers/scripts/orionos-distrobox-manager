@@ -1,0 +1,68 @@
+#!/bin/bash
+# OrionOS Distrobox Manager
+set -euo pipefail
+
+PRESETS_FILE="/usr/lib/orionos/distrobox/presets.json"
+
+list_distros() {
+    echo "=== Available Distrobox Distros ==="
+    if [[ -f "$PRESETS_FILE" ]]; then
+        python3 -c "
+import json
+data = json.load(open('$PRESETS_FILE'))
+for d in data['distros']:
+    print(f\"  {d['name']:15s} {d['image']}\")
+" 2>/dev/null
+    fi
+
+    echo ""
+    echo "=== Installed Distroboxes ==="
+    distrobox list 2>/dev/null || echo "  No distroboxes installed"
+}
+
+create_distrobox() {
+    local name="$1"
+    local image="${2:-docker.io/library/archlinux:latest}"
+
+    echo "Creating distrobox: $name from $image..."
+    distrobox create --name "$name" --image "$image"
+    distrobox enter --name "$name" -- bash -c "
+        echo 'Updating packages...'
+        if command -v pacman &>/dev/null; then
+            pacman -Syu --noconfirm
+        elif command -v apt &>/dev/null; then
+            apt update && apt upgrade -y
+        elif command -v dnf &>/dev/null; then
+            dnf upgrade -y
+        fi
+        echo 'Distrobox $name ready!'
+    "
+}
+
+enter_distrobox() {
+    local name="$1"
+    local command="${2:-bash}"
+    distrobox enter --name "$name" -- "$command"
+}
+
+delete_distrobox() {
+    local name="$1"
+    echo "Deleting distrobox: $name..."
+    distrobox rm --name "$name" --force
+}
+
+export_distrobox() {
+    local name="$1"
+    echo "Exporting distrobox: $name to desktop..."
+    distrobox-export --app-list --container "$name" 2>/dev/null || \
+    echo "Export completed or not supported"
+}
+
+case "${1:-}" in
+    list)    list_distros ;;
+    create)  create_distrobox "${2:?Name required}" "${3:-}" ;;
+    enter)   enter_distrobox "${2:?Name required}" "${3:-bash}" ;;
+    delete)  delete_distrobox "${2:?Name required}" ;;
+    export)  export_distrobox "${2:?Name required}" ;;
+    *)       echo "Usage: $0 {list|create|enter|delete|export} [name] [image]"; exit 1 ;;
+esac

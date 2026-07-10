@@ -1,0 +1,146 @@
+#!/bin/bash
+# OrionOS Container Runtime Setup
+set -euo pipefail
+
+CONFIG_FILE="/etc/orionos/containers.conf"
+LOG_FILE="/var/log/orionos/containers.log"
+
+log_info() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $*"; }
+log_error() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*" >&2; }
+
+check_root() {
+    [[ $EUID -eq 0 ]] || { log_error "Must be run as root"; exit 1; }
+}
+
+setup_docker() {
+    log_info "Configuring Docker..."
+    mkdir -p /etc/docker
+    cat > /etc/docker/daemon.json << 'DKEOF'
+{
+    "storage-driver": "overlay2",
+    "log-driver": "json-file",
+    "log-opts": {"max-size": "10m", "max-file": "3"},
+    "dns": ["1.1.1.1", "8.8.8.8"],
+    "features": {"buildkit": true},
+    "default-runtime": "runc",
+    "live-restore": true
+}
+DKEOF
+
+    systemctl enable --now docker 2>/dev/null || true
+    log_info "Docker configured"
+}
+
+setup_podman() {
+    log_info "Configuring Podman..."
+    mkdir -p /etc/containers
+    cat > /etc/containers/registries.conf << 'PODEOF'
+[registries.search]
+registries = ['docker.io', 'quay.io', 'ghcr.io', 'registry.orionos.org']
+
+[registries.insecure]
+registries = []
+
+[registries.block]
+registries = []
+PODEOF
+
+    cat > /etc/containers/storage.conf << 'STOREEOF'
+[storage]
+driver = "overlay"
+runroot = "/run/containers/storage"
+graphroot = "/var/lib/containers/storage"
+
+[storage.options]
+mount_program = "/usr/bin/fuse-overlayfs"
+SIZE = ""
+RUNROOT = ""
+STOREEOF
+
+    systemctl enable --now podman 2>/dev/null || true
+    log_info "Podman configured"
+}
+
+setup_distrobox() {
+    log_info "Configuring Distrobox..."
+    local distrobox_dir="/usr/lib/orionos/distrobox"
+    mkdir -p "$distrobox_dir"
+
+    cat > "$distrobox_dir/presets.json" << 'DBEOF'
+{
+    "distros": [
+        {"name": "arch", "image": "docker.io/library/archlinux:latest"},
+        {"name": "ubuntu", "image": "docker.io/library/ubuntu:24.04"},
+        {"name": "fedora", "image": "quay.io/fedora/fedora:40"},
+        {"name": "debian", "image": "docker.io/library/debian:bookworm"},
+        {"name": "opensuse", "image": "docker.io/opensuse/tumbleweed:latest"},
+        {"name": "alpine", "image": "docker.io/library/alpine:latest"},
+        {"name": "centos", "image": "quay.io/centos/centos:stream9"},
+        {"name": "void", "image": "ghcr.io/void-linux/void-linux:latest"}
+    ],
+    "default_home": "~/.local/share/distrobox",
+    "integration_level": "full",
+    "autostart": false
+}
+DBEOF
+
+    log_info "Distrobox configured"
+}
+
+setup_podman_compose() {
+    log_info "Setting up Podman Compose..."
+    if command -v podman-compose &>/dev/null; then
+        log_info "Podman Compose already installed"
+    fi
+}
+
+setup_rootless() {
+    log_info "Configuring rootless containers..."
+    local user="${SUDO_USER:-$USER}"
+
+    if id -nG "$user" | grep -q wheel; then
+        log_info "User $user has wheel group access"
+    fi
+
+    loginctl enable-linger "$user" 2>/dev/null || true
+    log_info "Rootless container support configured for $user"
+}
+
+main() {
+    local action="${1:-setup}"
+    check_root
+    mkdir -p "$(dirname "$LOG_FILE")"
+
+    case "$action" in
+        setup)
+            log_info "Starting container runtime setup..."
+            setup_docker
+            setup_podman
+            setup_distrobox
+            setup_podman_compose
+            setup_rootless
+            log_info "Container setup complete"
+            ;;
+        docker)     setup_docker ;;
+        podman)     setup_podman ;;
+        distrobox)  setup_distrobox ;;
+        rootless)   setup_rootless ;;
+        status)
+            echo "=== Container Runtime Status ==="
+            echo "Docker:     $(systemctl is-active docker 2>/dev/null || echo 'inactive')"
+            echo "Podman:     $(command -v podman &>/dev/null && echo 'available' || echo 'not found')"
+            echo "Distrobox:  $(command -v distrobox &>/dev/null && echo 'available' || echo 'not found')"
+            echo "Buildah:    $(command -v buildah &>/dev/null && echo 'available' || echo 'not found')"
+            echo "Skopeo:     $(command -v skopeo &>/dev/null && echo 'available' || echo 'not found')"
+            echo "Docker images: $(docker images -q 2>/dev/null | wc -l)"
+            echo "Podman images: $(podman images -q 2>/dev/null | wc -l)"
+            echo "Containers: $(docker ps -aq 2>/dev/null | wc -l) running"
+            ;;
+        *)
+            echo "Usage: $0 {setup|docker|podman|distrobox|rootless|status}"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

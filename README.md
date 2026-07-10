@@ -174,6 +174,13 @@ make PROFILE=gaming all
 - [Cloud Sync GUI](docs/features/cloud-sync-gui.md)
 - [Plugin Marketplace](docs/features/plugin-marketplace.md)
 
+### Features (Future)
+- [ARM64 Support](docs/features/arm64-support.md)
+- [Containerized Apps](docs/features/containers.md)
+- [AI Model Marketplace](docs/features/ai-marketplace.md)
+- [Cloud Gaming](docs/features/cloud-gaming.md)
+- [Mobile Companion](docs/features/mobile-companion.md)
+
 ### Guides
 - [Installation Guide](docs/installation/installation-guide.md)
 - [Desktop Guide](docs/desktop/desktop-guide.md)
@@ -195,14 +202,18 @@ orionos/
 │   │   ├── orionos-utils/
 │   │   ├── orionos-voice-assistant/
 │   │   ├── orionos-secureboot/
-│   │   └── orionos-tpm-luks/
+│   │   ├── orionos-tpm-luks/
+│   │   └── orionos-arm64-support/
 │   ├── extra/        # Additional packages
 │   │   ├── calamares/
 │   │   ├── orionos-software-center/
 │   │   ├── orionos-game-optimize/
 │   │   ├── orionos-display-optimization/
 │   │   ├── orionos-cloud-sync/
-│   │   └── orionos-plugin-marketplace/
+│   │   ├── orionos-plugin-marketplace/
+│   │   ├── orionos-containers/
+│   │   ├── orionos-ai-marketplace/
+│   │   └── orionos-cloud-gaming/
 │   └── community/    # Community packages
 ├── kernel/           # Custom kernel build
 ├── desktop/          # Desktop environment configs
@@ -211,9 +222,13 @@ orionos/
 ├── gaming/           # Gaming stack
 ├── security/         # Security configuration
 ├── ecosystem/        # Cross-device services
-│   └── phone-sync/   # Phone sync
-│       ├── desktop/  # Rust desktop service
-│       ├── cloud/    # Go cloud service
+│   ├── phone-sync/   # Phone sync
+│   │   ├── desktop/  # Rust desktop service
+│   │   ├── cloud/    # Go cloud service
+│   │   └── proto/    # Protocol Buffers
+│   └── mobile-companion/ # Full mobile companion
+│       ├── desktop/  # Rust desktop client
+│       ├── cloud/    # Go cloud relay
 │       └── proto/    # Protocol Buffers
 ├── scripts/          # Build and utility scripts
 ├── testing/          # Test suite
@@ -305,11 +320,11 @@ OrionOS is licensed under the GNU General Public License v3.0. See [LICENSE](LIC
 - [x] Stability and polish
 
 ### Future
-- [ ] ARM64 support
-- [ ] Containerized applications
-- [ ] AI model marketplace
-- [ ] Cloud gaming integration
-- [ ] Mobile companion app
+- [x] ARM64 support
+- [x] Containerized applications
+- [x] AI model marketplace
+- [x] Cloud gaming integration
+- [x] Mobile companion app
 
 ---
 

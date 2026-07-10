@@ -1,0 +1,40 @@
+# Maintainer: Yousef Elsharkawy <yousefelsharkawy26@gmail.com>
+pkgname=orionos-ai-marketplace
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="OrionOS AI Model Marketplace - Download, manage, and deploy AI models"
+arch=('x86_64')
+url="https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro"
+license=('GPL3')
+depends=(
+    'python'
+    'python-requests'
+    'python-yaml'
+    'python-rich'
+    'ollama'
+    'llama.cpp'
+    'python-huggingface-hub'
+)
+makedepends=('python-setuptools' 'cmake')
+optdepends=(
+    'nvidia-utils: NVIDIA GPU acceleration'
+    'cuda: CUDA acceleration'
+    'rocm-hip-runtime: AMD GPU acceleration'
+    'python-onnxruntime: ONNX inference'
+    'python-transformers: Hugging Face models'
+    'python-safetensors: SafeTensors format'
+)
+conflicts=('orionos-ai-marketplace-git')
+provides=('orionos-ai-marketplace')
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro/releases/download/${pkgver}/${pkgname}-${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    cd "${pkgname}-${pkgver}"
+    install -Dm755 scripts/orionos-ai-model "${pkgdir}/usr/bin/orionos-ai-model"
+    install -Dm644 config/ai-marketplace.conf "${pkgdir}/etc/orionos/ai-marketplace.conf"
+    install -Dm644 config/model-catalog.json "${pkgdir}/etc/orionos/model-catalog.json"
+    install -Dm644 systemd/orionos-ai-model.service "${pkgdir}/usr/lib/systemd/user/orionos-ai-model.service"
+    install -Dm644 desktop/orionos-ai-marketplace.desktop "${pkgdir}/usr/share/applications/orionos-ai-marketplace.desktop"
+    install -Dm755 src/orionos_ai_marketplace.py "${pkgdir}/usr/lib/orionos/ai-marketplace/orionos_ai_marketplace.py"
+}

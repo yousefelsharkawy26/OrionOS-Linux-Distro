@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=OrionOS AI Marketplace
+Comment=Download and manage AI models
+Exec=orionos-ai-model catalog
+Icon=orionos-ai-marketplace
+Terminal=true
+Type=Application
+Categories=Utility;System;AI;
+StartupNotify=true
+Keywords=ai;model;marketplace;ollama;llm;

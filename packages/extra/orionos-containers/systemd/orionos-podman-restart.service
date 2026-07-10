@@ -1,0 +1,11 @@
+[Unit]
+Description=Restart Podman Containers
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/podman start --all
+RemainAfterExit=yes
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,12 @@
+[Unit]
+Description=OrionOS ARM64 Emulation (binfmt_misc)
+After=local-fs.target
+ConditionPathExists=/proc/sys/fs/binfmt_misc
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/orionos-arm64-setup binfmt
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

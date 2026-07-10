@@ -1,0 +1,174 @@
+#!/bin/bash
+# OrionOS ARM64 Support Setup
+# Configures cross-compilation and ARM64 device support
+set -euo pipefail
+
+CONFIG_FILE="/etc/orionos/arm64-support.conf"
+BOARDS_FILE="/etc/orionos/boards.conf"
+LOG_FILE="/var/log/orionos/arm64-support.log"
+
+log_info() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $*" | tee -a "$LOG_FILE"; }
+log_error() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*" | tee -a "$LOG_FILE" >&2; }
+
+check_root() {
+    if [[ $EUID -ne 0 ]]; then
+        log_error "Must be run as root"
+        exit 1
+    fi
+}
+
+setup_binfmt() {
+    log_info "Setting up binfmt_misc for ARM64 emulation..."
+
+    if [[ ! -d /proc/sys/fs/binfmt_misc ]]; then
+        modprobe binfmt_misc
+        mount binfmt_misc -t binfmt_misc /proc/sys/fs/binfmt_misc
+    fi
+
+    if command -v update-binfmts &>/dev/null; then
+        update-binfmts --enable qemu-aarch64 2>/dev/null || true
+    fi
+
+    systemctl enable --now systemd-binfmt 2>/dev/null || true
+    log_info "binfmt_misc configured for ARM64"
+}
+
+setup_qemu() {
+    log_info "Configuring QEMU user-static for ARM64..."
+
+    if [[ -f /usr/bin/qemu-aarch64-static ]]; then
+        cp /usr/bin/qemu-aarch64-static /usr/lib/binfmt_misc/ 2>/dev/null || true
+    fi
+
+    log_info "QEMU ARM64 emulation configured"
+}
+
+setup_cross_compiler() {
+    log_info "Setting up cross-compilation toolchain..."
+
+    local cross_dir="/opt/orionos/arm64-cross"
+    mkdir -p "$cross_dir"
+
+    cat > "$cross_dir/aarch64-env.sh" << 'ENVEOF'
+export ARCH=arm64
+export CROSS_COMPILE=aarch64-linux-gnu-
+export CC=aarch64-linux-gnu-gcc
+export CXX=aarch64-linux-gnu-g++
+export AR=aarch64-linux-gnu-ar
+export AS=aarch64-linux-gnu-as
+export LD=aarch64-linux-gnu-ld
+export RANLIB=aarch64-linux-gnu-ranlib
+export STRIP=aarch64-linux-gnu-strip
+export NM=aarch64-linux-gnu-nm
+ENVEOF
+
+    chmod +x "$cross_dir/aarch64-env.sh"
+    log_info "Cross-compilation toolchain configured at $cross_dir"
+}
+
+setup_device_support() {
+    log_info "Configuring ARM64 device support..."
+
+    local devices_dir="/usr/lib/orionos/arm64/devices"
+    mkdir -p "$devices_dir"
+
+    # Raspberry Pi 4/5
+    cat > "$devices_dir/raspberry-pi.json" << 'RPIEOF'
+{
+    "name": "Raspberry Pi 4/5",
+    "arch": "aarch64",
+    "kernel": "linux-rpi",
+    "bootloader": "uboot-rpi",
+    "dtb": "broadcom/bcm2711-rpi-4-b.dtb",
+    "partitions": {
+        "boot": {"size_mb": 256, "type": "fat32", "mount": "/boot"},
+        "root": {"size_mb": 0, "type": "ext4", "mount": "/"}
+    },
+    "boot_args": "console=ttyS0,115200 root=/dev/mmcblk0p2 rootwait",
+    "gpu_mem": 128
+}
+RPIEOF
+
+    # ODROID-N2
+    cat > "$devices_dir/odroid-n2.json" << 'ODEOF'
+{
+    "name": "ODROID-N2/N2+",
+    "arch": "aarch64",
+    "kernel": "linux-odroid",
+    "bootloader": "uboot-odroid",
+    "dtb": "amlogic/meson64_odroidn2.dtb",
+    "partitions": {
+        "boot": {"size_mb": 256, "type": "fat32", "mount": "/boot"},
+        "root": {"size_mb": 0, "type": "ext4", "mount": "/"}
+    },
+    "boot_args": "console=ttyS0,115200 root=/dev/mmcblk0p2 rootwait"
+}
+ODEOF
+
+    # Pine64
+    cat > "$devices_dir/pine64.json" << 'PINEOF'
+{
+    "name": "Pine64 Quartz64",
+    "arch": "aarch64",
+    "kernel": "linux-pine64",
+    "bootloader": "uboot-pine64",
+    "dtb": "rockchip/rk3566-quartz64-a.dtb",
+    "partitions": {
+        "boot": {"size_mb": 256, "type": "fat32", "mount": "/boot"},
+        "root": {"size_mb": 0, "type": "ext4", "mount": "/"}
+    },
+    "boot_args": "console=ttyS2,1500000 root=/dev/mmcblk0p2 rootwait"
+}
+PINEOF
+
+    log_info "Device support files created"
+}
+
+setup_android_bridge() {
+    log_info "Setting up Android device bridge..."
+    if command -v adb &>/dev/null; then
+        systemctl enable adb 2>/dev/null || true
+        log_info "ADB bridge enabled"
+    fi
+}
+
+main() {
+    local action="${1:-setup}"
+    check_root
+    mkdir -p "$(dirname "$LOG_FILE")"
+
+    case "$action" in
+        setup)
+            log_info "Starting ARM64 support setup..."
+            setup_binfmt
+            setup_qemu
+            setup_cross_compiler
+            setup_device_support
+            setup_android_bridge
+            log_info "ARM64 support setup complete"
+            ;;
+        binfmt)
+            setup_binfmt
+            ;;
+        cross-compiler)
+            setup_cross_compiler
+            ;;
+        devices)
+            setup_device_support
+            ;;
+        status)
+            echo "=== ARM64 Support Status ==="
+            echo "Architecture: $(uname -m)"
+            echo "QEMU: $(command -v qemu-aarch64-static 2>/dev/null && echo 'installed' || echo 'not found')"
+            echo "Cross-compiler: $(command -v aarch64-linux-gnu-gcc 2>/dev/null && echo 'installed' || echo 'not found')"
+            echo "binfmt_misc: $(mount | grep -c binfmt_misc || echo 'not mounted')"
+            echo "ADB: $(command -v adb 2>/dev/null && echo 'installed' || echo 'not found')"
+            ;;
+        *)
+            echo "Usage: $0 {setup|binfmt|cross-compiler|devices|status}"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

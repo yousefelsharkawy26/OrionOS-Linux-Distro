@@ -1,0 +1,44 @@
+# Maintainer: Yousef Elsharkawy <yousefelsharkawy26@gmail.com>
+pkgname=orionos-cloud-gaming
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="OrionOS Cloud Gaming - Steam Remote Play, Moonlight, Parsec, cloud streaming"
+arch=('x86_64')
+url="https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro"
+license=('GPL3')
+depends=(
+    'python'
+    'python-requests'
+    'python-yaml'
+    'moonlight-qt'
+    'sunshine'
+    'steam'
+)
+makedepends=('python-setuptools')
+optdepends=(
+    'parsecgaming: Parsec cloud gaming'
+    'gamescope: Micro-compositor for streaming'
+    'mangohud: Performance overlay'
+    'pipewire: Low-latency audio streaming'
+    'wireplumber: PipeWire session manager'
+    'x264: Video encoding'
+    'x265: HEVC encoding'
+    'libva: Hardware-accelerated encoding'
+    'nvenc: NVIDIA hardware encoding'
+)
+conflicts=('orionos-cloud-gaming-git')
+provides=('orionos-cloud-gaming')
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro/releases/download/${pkgver}/${pkgname}-${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    cd "${pkgname}-${pkgver}"
+    install -Dm755 scripts/orionos-cloud-gaming-setup "${pkgdir}/usr/bin/orionos-cloud-gaming-setup"
+    install -Dm755 scripts/orionos-cloud-gaming-stream "${pkgdir}/usr/bin/orionos-cloud-gaming-stream"
+    install -Dm644 config/cloud-gaming.conf "${pkgdir}/etc/orionos/cloud-gaming.conf"
+    install -Dm644 config/streaming-profiles.json "${pkgdir}/etc/orionos/streaming-profiles.json"
+    install -Dm644 systemd/orionos-cloud-gaming.service "${pkgdir}/usr/lib/systemd/user/orionos-cloud-gaming.service"
+    install -Dm644 systemd/orionos-sunshine.service "${pkgdir}/usr/lib/systemd/user/orionos-sunshine.service"
+    install -Dm644 desktop/orionos-cloud-gaming.desktop "${pkgdir}/usr/share/applications/orionos-cloud-gaming.desktop"
+    install -Dm755 src/orionos_cloud_gaming.py "${pkgdir}/usr/lib/orionos/cloud-gaming/orionos_cloud_gaming.py"
+}

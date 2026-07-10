@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=OrionOS Mobile Companion
+Comment=Mobile device companion for OrionOS
+Exec=orionos-mobile-companion --status
+Icon=orionos-mobile-companion
+Terminal=true
+Type=Application
+Categories=Utility;System;
+StartupNotify=true
+Keywords=mobile;companion;phone;sync;bluetooth;

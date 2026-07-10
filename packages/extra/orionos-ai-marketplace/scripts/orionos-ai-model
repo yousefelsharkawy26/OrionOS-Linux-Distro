@@ -1,0 +1,3 @@
+#!/bin/bash
+# OrionOS AI Model Marketplace CLI
+exec python3 /usr/lib/orionos/ai-marketplace/orionos_ai_marketplace.py "$@"

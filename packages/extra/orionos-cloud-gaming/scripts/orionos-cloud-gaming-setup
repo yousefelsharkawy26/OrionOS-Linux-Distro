@@ -1,0 +1,112 @@
+#!/bin/bash
+# OrionOS Cloud Gaming Setup
+set -euo pipefail
+
+CONFIG_FILE="/etc/orionos/cloud-gaming.conf"
+LOG_FILE="/var/log/orionos/cloud-gaming.log"
+
+log_info() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $*"; }
+
+setup_sunshine() {
+    log_info "Configuring Sunshine (game streaming server)..."
+    local sunshine_dir="$HOME/.config/sunshine"
+    mkdir -p "$sunshine_dir"
+
+    if [[ ! -f "$sunshine_dir/sunshine.conf" ]]; then
+        cat > "$sunshine_dir/sunshine.conf" << 'SSEOF'
+# Sunshine Configuration for OrionOS
+min_log_level=2
+origin_web_ui_allowed=lan
+encoder=vaapi
+capture=wlroots
+adapter_name=
+output_name=
+keybindings_rotate=Meta+Shift+Page_Up,Meta+Shift+Page_Down
+upnp=on
+SSEOF
+    fi
+
+    systemctl --user enable --now sunshine 2>/dev/null || true
+    log_info "Sunshine configured"
+}
+
+setup_moonlight() {
+    log_info "Configuring Moonlight (game streaming client)..."
+    local moonlight_dir="$HOME/.config/Moonlight Game Streaming Project/Moonlight"
+    mkdir -p "$moonlight_dir"
+    log_info "Moonlight configured - connect to Sunshine host"
+}
+
+setup_steam_remote() {
+    log_info "Configuring Steam Remote Play..."
+    local steam_dir="$HOME/.steam/steam"
+    if [[ -d "$steam_dir" ]]; then
+        log_info "Steam found at $steam_dir"
+        mkdir -p "$steam_dir/config"
+        log_info "Steam Remote Play configured"
+    else
+        log_info "Steam not found - install Steam first"
+    fi
+}
+
+setup_network() {
+    log_info "Optimizing network for streaming..."
+    sudo sysctl -w net.core.rmem_max=16777216 2>/dev/null || true
+    sudo sysctl -w net.core.wmem_max=16777216 2>/dev/null || true
+    sudo sysctl -w net.ipv4.tcp_rmem="4096 87380 16777216" 2>/dev/null || true
+    sudo sysctl -w net.ipv4.tcp_wmem="4096 65536 16777216" 2>/dev/null || true
+    sudo sysctl -w net.ipv4.tcp_congestion_control=bbr 2>/dev/null || true
+    log_info "Network optimized for streaming"
+}
+
+setup_audio() {
+    log_info "Configuring low-latency audio for streaming..."
+    local pw_config="$HOME/.config/pipewire/pipewire.conf.d"
+    mkdir -p "$pw_config"
+
+    cat > "$pw_config/orionos-streaming.conf" << 'AEOF'
+context.properties = {
+    default.clock.rate = 48000
+    default.clock.quantum = 256
+    default.clock.min-quantum = 64
+    default.clock.max-quantum = 2048
+}
+AEOF
+
+    log_info "Audio configured for low-latency streaming"
+}
+
+main() {
+    local action="${1:-setup}"
+
+    case "$action" in
+        setup)
+            log_info "Starting cloud gaming setup..."
+            setup_sunshine
+            setup_moonlight
+            setup_steam_remote
+            setup_network
+            setup_audio
+            log_info "Cloud gaming setup complete"
+            ;;
+        sunshine)  setup_sunshine ;;
+        moonlight) setup_moonlight ;;
+        steam)     setup_steam_remote ;;
+        network)   setup_network ;;
+        audio)     setup_audio ;;
+        status)
+            echo "=== Cloud Gaming Status ==="
+            echo "Sunshine: $(systemctl --user is-active sunshine 2>/dev/null || echo 'not running')"
+            echo "Moonlight: $(command -v moonlight &>/dev/null && echo 'installed' || echo 'not found')"
+            echo "Steam: $(command -v steam &>/dev/null && echo 'installed' || echo 'not found')"
+            echo "Parsec: $(command -v parsecd 2>/dev/null && echo 'installed' || echo 'not found')"
+            echo "Network: $(sysctl -n net.ipv4.tcp_congestion_control 2>/dev/null || echo 'unknown')"
+            ;;
+        *)
+            echo "Usage: $0 {setup|sunshine|moonlight|steam|network|audio|status}"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
