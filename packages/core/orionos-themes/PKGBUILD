@@ -1,226 +1,271 @@
-# Maintainer: OrionOS Team <team@orionos.org>
+# Maintainer: Yousef Elsharkawy <yousefelsharkawy26@gmail.com>
 pkgname=orionos-themes
 pkgver=0.1.0
 pkgrel=1
-pkgdesc="OrionOS Visual Themes - GTK, Icon, Cursor, and Sound themes"
+pkgdesc="OrionOS visual themes, icons, cursors, and branding"
 arch=('any')
-url="https://orionos.org"
-license=('GPL-3.0')
+url="https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro"
+license=('GPL3')
 depends=(
     'gtk3'
     'gtk4'
-    'gnome-themes-extra'
+    'qt5-base'
+    'qt6-base'
+    'gdk-pixbuf2'
+    'librsvg'
+    'hicolor-icon-theme'
 )
-source=()
-sha256sums=()
+optdepends=(
+    'papirus-icon-theme: Recommended icon theme'
+    'bibata-cursor-theme: Recommended cursor theme'
+    'orionos-desktop: Desktop environment integration'
+)
+conflicts=('orionos-themes-git')
+provides=('orionos-themes')
 
 package() {
-    # Theme directories
-    install -d "${pkgdir}/usr/share/themes"
-    install -d "${pkgdir}/usr/share/icons"
-    install -d "${pkgdir}/usr/share/sounds"
-    install -d "${pkgdir}/usr/share/plymouth/themes/orionos"
-    install -d "${pkgdir}/usr/share/gtk-3.0"
-    install -d "${pkgdir}/usr/share/gtk-4.0"
+    # Base directories
+    install -d "$pkgdir/usr/share/themes"
+    install -d "$pkgdir/usr/share/icons"
+    install -d "$pkgdir/usr/share/plymouth/themes/orionos"
+    install -d "$pkgdir/usr/share/sddm/themes/orionos"
+    install -d "$pkgdir/usr/share/grub/themes/orionos"
+    install -d "$pkgdir/usr/share/licenses/orionos-themes"
+    install -d "$pkgdir/usr/share/doc/orionos-themes"
+    install -d "$pkgdir/etc/skel/.config/gtk-3.0"
+    install -d "$pkgdir/etc/skel/.config/gtk-4.0"
+    install -d "$pkgdir/etc/skel/.config/Kvantum"
 
-    # ============================================
-    # OrionOS Color Palette
-    # ============================================
-    install -d "${pkgdir}/usr/share/orionos"
-    cat > "${pkgdir}/usr/share/orionos/colors.conf" << 'EOF'
-# OrionOS Color Palette
-# Primary Colors
-ORION_BLUE=#00B4D8
-ORION_BLUE_LIGHT=#7B2FF7
-ORION_BLUE_DARK=#0077B6
-ORION_PURPLE=#7B2FF7
-ORION_PURPLE_LIGHT=#9D4EDD
-ORION_PURPLE_DARK=#5A189A
-
-# Accent Colors
-ORION_CORAL=#FF6B6B
-ORION_CORAL_LIGHT=#FF8E8E
-ORION_CORAL_DARK=#EE5A5A
-ORION_GOLD=#FFD166
-ORION_GREEN=#06D6A0
-ORION_PINK=#F72585
-
-# Neutral Colors
-ORION_DARKEST=#0A0A1A
-ORION_DARKER=#0F0F23
-ORION_DARK=#1A1A3E
-ORION_DARK_MID=#2A2A4A
-ORION_MID=#4A4A6A
-ORION_LIGHT_MID=#6A6A8A
-ORION_LIGHT=#A0A0C0
-ORION_LIGHTER=#D0D0E8
-ORION_LIGHTEST=#F0F0FF
-
-# Semantic Colors
-ORION_SUCCESS=#06D6A0
-ORION_WARNING=#FFD166
-ORION_ERROR=#FF6B6B
-ORION_INFO=#00B4D8
-
-# Background Colors
-ORION_BG_PRIMARY=#0F0F23
-ORION_BG_SECONDARY=#1A1A3E
-ORION_BG_TERTIARY=#2A2A4A
-ORION_BG_ELEVATED=#252550
-
-# Text Colors
-ORION_TEXT_PRIMARY=#F0F0FF
-ORION_TEXT_SECONDARY=#A0A0C0
-ORION_TEXT_TERTIARY=#6A6A8A
-ORION_TEXT_DISABLED=#4A4A6A
-
-# Border Colors
-ORION_BORDER_DEFAULT=#2A2A4A
-ORION_BORDER_FOCUSED=#00B4D8
-ORION_BORDER_ERROR=#FF6B6B
-
-# Gradient Definitions
-ORION_GRADIENT_PRIMARY=linear-gradient(135deg, #00B4D8, #7B2FF7)
-ORION_GRADIENT_ACCENT=linear-gradient(135deg, #FF6B6B, #F72585)
-ORION_GRADIENT_SUCCESS=linear-gradient(135deg, #06D6A0, #00B4D8)
-EOF
-
-    # ============================================
-    # GTK3 Theme - OrionOS Dark
-    # ============================================
-    install -d "${pkgdir}/usr/share/themes/OrionOS-Dark/gtk-3.0"
-
-    cat > "${pkgdir}/usr/share/themes/OrionOS-Dark/gtk-3.0/gtk.css" << 'EOF'
+    # ==================================================================
+    # GTK 3 Theme
+    # ==================================================================
+    install -d "$pkgdir/usr/share/themes/OrionOS-Dark/gtk-3.0"
+    cat > "$pkgdir/usr/share/themes/OrionOS-Dark/gtk-3.0/gtk.css" << 'EOF'
 /* OrionOS Dark GTK3 Theme */
+/* Based on Catppuccin Macchiato with custom adjustments */
 
-@define-color orion_bg #0F0F23;
-@define-color orion_bg_secondary #1A1A3E;
-@define-color orion_bg_tertiary #2A2A4A;
-@define-color orion_bg_elevated #252550;
-@define-color orion_text_primary #F0F0FF;
-@define-color orion_text_secondary #A0A0C0;
-@define-color orion_text_tertiary #6A6A8A;
-@define-color orion_accent #00B4D8;
-@define-color orion_accent_light #7B2FF7;
-@define-color orion_border #2A2A4A;
-@define-color orion_success #06D6A0;
-@define-color orion_warning #FFD166;
-@define-color orion_error #FF6B6B;
+@define-color bg_color #1e2030;
+@define-color fg_color #cad3f5;
+@define-color base_color #24273a;
+@define-color text_color #cad3f5;
+@define-color selected_bg_color #8aadf4;
+@define-color selected_fg_color #1e2030;
+@define-color tooltip_bg_color #1e2030;
+@define-color tooltip_fg_color #cad3f5;
+@define-color accent_color #8aadf4;
+@define-color accent_bg_color #363a4f;
+@define-color button_bg_color #363a4f;
+@define-color button_fg_color #cad3f5;
+@define-color headerbar_bg_color #181926;
+@define-color headerbar_fg_color #cad3f5;
+@define-color menu_bg_color #1e2030;
+@define-color menu_fg_color #cad3f5;
+@define-color error_color #ed8796;
+@define-color warning_color #eed49f;
+@define-color success_color #a6da95;
 
 * {
-    background-color: @orion_bg;
-    color: @orion_text_primary;
-    border-color: @orion_border;
-    font-family: "SF Pro Display", "Inter", "Noto Sans", sans-serif;
-    font-size: 13px;
+    background-color: @bg_color;
+    color: @fg_color;
+    border-color: #363a4f;
+    outline-color: @accent_color;
+    outline-width: 2px;
+    outline-offset: -2px;
+    -GtkWidget-focus-line-width: 2px;
+    -GtkWidget-focus-padding: 2px;
 }
 
 window {
-    background-color: @orion_bg;
+    background-color: @bg_color;
+    color: @fg_color;
     border-radius: 12px;
 }
 
-window decoration {
+window.csd {
     border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+window.csd decoration {
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(180, 190, 254, 0.15);
 }
 
 headerbar {
-    background: linear-gradient(180deg, @orion_bg_elevated, @orion_bg_secondary);
-    border-bottom: 1px solid @orion_border;
-    padding: 8px 16px;
+    background: @headerbar_bg_color;
+    color: @headerbar_fg_color;
+    border-radius: 12px 12px 0 0;
     min-height: 40px;
+    padding: 0 12px;
 }
 
-headerbar.titlebar {
-    border-radius: 12px 12px 0 0;
+headerbar:backdrop {
+    background: #1e2030;
 }
 
 button {
-    background: @orion_bg_tertiary;
-    border: 1px solid @orion_border;
+    background: @button_bg_color;
+    color: @button_fg_color;
+    border: 1px solid #494d64;
     border-radius: 8px;
-    padding: 8px 16px;
-    transition: all 0.2s ease;
+    padding: 6px 16px;
+    transition: all 200ms ease;
 }
 
 button:hover {
-    background: @orion_bg_elevated;
-    border-color: @orion_accent;
+    background: #5b6078;
+    border-color: #8aadf4;
 }
 
 button:active {
-    background: @orion_accent;
-    color: @orion_bg;
+    background: #8aadf4;
+    color: @selected_fg_color;
 }
 
-button.suggested-action {
-    background: linear-gradient(135deg, @orion_accent, @orion_accent_light);
-    color: white;
-    border: none;
+button:checked {
+    background: #8aadf4;
+    color: @selected_fg_color;
 }
 
-button.destructive-action {
-    background: @orion_error;
-    color: white;
-    border: none;
+button:disabled {
+    background: #24273a;
+    color: #6e738d;
+    border-color: #363a4f;
 }
 
 entry {
-    background: @orion_bg_secondary;
-    border: 1px solid @orion_border;
+    background: @base_color;
+    color: @text_color;
+    border: 1px solid #494d64;
     border-radius: 8px;
-    padding: 8px 12px;
-    color: @orion_text_primary;
+    padding: 6px 12px;
+    caret-color: #8aadf4;
 }
 
 entry:focus {
-    border-color: @orion_accent;
-    box-shadow: 0 0 0 2px rgba(0, 180, 216, 0.2);
+    border-color: #8aadf4;
+    box-shadow: 0 0 0 2px rgba(138, 173, 244, 0.2);
+}
+
+entry:disabled {
+    background: #1e2030;
+    color: #6e738d;
 }
 
 entry selection {
-    background: @orion_accent;
-    color: white;
+    background: @selected_bg_color;
+    color: @selected_fg_color;
+}
+
+notebook {
+    border-radius: 8px;
+}
+
+notebook header {
+    background: @headerbar_bg_color;
+    border-radius: 8px 8px 0 0;
+}
+
+notebook tab {
+    background: transparent;
+    padding: 8px 16px;
+    border-radius: 8px 8px 0 0;
+    transition: all 200ms ease;
+}
+
+notebook tab:checked {
+    background: @bg_color;
+    border-bottom: 2px solid #8aadf4;
+}
+
+notebook tab:hover {
+    background: rgba(180, 190, 254, 0.1);
 }
 
 popover {
-    background: @orion_bg_elevated;
-    border: 1px solid @orion_border;
+    background: @menu_bg_color;
+    border: 1px solid #363a4f;
     border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    padding: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
-popover modelbutton {
-    padding: 8px 16px;
+popover menuitem {
     border-radius: 8px;
-    margin: 4px;
+    padding: 6px 12px;
+    transition: all 150ms ease;
 }
 
-popover modelbutton:hover {
-    background: rgba(0, 180, 216, 0.15);
+popover menuitem:hover {
+    background: rgba(180, 190, 254, 0.15);
+}
+
+menubar {
+    background: @headerbar_bg_color;
+    padding: 4px 12px;
 }
 
 menu {
-    background: @orion_bg_elevated;
-    border: 1px solid @orion_border;
-    border-radius: 12px;
+    background: @menu_bg_color;
+    border: 1px solid #363a4f;
+    border-radius: 8px;
     padding: 8px;
 }
 
 menuitem {
-    padding: 8px 16px;
-    border-radius: 8px;
-    margin: 2px 0;
+    border-radius: 6px;
+    padding: 6px 20px;
+    transition: all 150ms ease;
 }
 
 menuitem:hover {
-    background: rgba(0, 180, 216, 0.15);
+    background: rgba(180, 190, 254, 0.15);
 }
 
-menubar {
-    background: @orion_bg_secondary;
-    border-bottom: 1px solid @orion_border;
+separator {
+    background: #363a4f;
+    margin: 4px 12px;
+}
+
+scrolledwindow {
+    border-radius: 8px;
+}
+
+scrollbar {
+    background: transparent;
+    border-radius: 4px;
+}
+
+scrollbar slider {
+    background: #6e738d;
+    border-radius: 4px;
+    min-width: 8px;
+    min-height: 32px;
+    transition: all 200ms ease;
+}
+
+scrollbar slider:hover {
+    background: #939ab7;
+}
+
+scrollbar slider:active {
+    background: #8aadf4;
+}
+
+progressbar {
+    border-radius: 4px;
+}
+
+progressbar trough {
+    background: #363a4f;
+    border-radius: 4px;
+    min-height: 6px;
+}
+
+progressbar progress {
+    background: linear-gradient(90deg, #8aadf4, #b4befe);
+    border-radius: 4px;
+    min-height: 6px;
 }
 
 scale {
@@ -228,446 +273,274 @@ scale {
 }
 
 scale trough {
-    background: @orion_bg_tertiary;
+    background: #363a4f;
     border-radius: 4px;
     min-height: 6px;
 }
 
 scale highlight {
-    background: linear-gradient(90deg, @orion_accent, @orion_accent_light);
+    background: #8aadf4;
     border-radius: 4px;
 }
 
 scale slider {
-    background: @orion_text_primary;
-    border: 2px solid @orion_accent;
+    background: #cad3f5;
+    border: 2px solid #8aadf4;
     border-radius: 50%;
     min-width: 18px;
     min-height: 18px;
 }
 
-progressbar trough {
-    background: @orion_bg_tertiary;
-    border-radius: 4px;
-    min-height: 6px;
-}
-
-progressbar progress {
-    background: linear-gradient(90deg, @orion_accent, @orion_accent_light);
-    border-radius: 4px;
-}
-
 switch {
-    background: @orion_bg_tertiary;
-    border-radius: 12px;
-    min-width: 40px;
-    min-height: 24px;
+    background: #363a4f;
+    border-radius: 14px;
+    min-width: 48px;
+    min-height: 26px;
+    transition: all 200ms ease;
 }
 
 switch:checked {
-    background: @orion_accent;
+    background: #8aadf4;
 }
 
 switch slider {
-    background: @orion_text_primary;
+    background: #cad3f5;
     border-radius: 50%;
-}
-
-scrollbar {
-    background: transparent;
-    min-width: 8px;
-}
-
-scrollbar slider {
-    background: @orion_mid;
-    border-radius: 4px;
-    min-width: 8px;
-}
-
-scrollbar slider:hover {
-    background: @orion_light_mid;
-}
-
-scrolledwindow {
-    border-radius: 8px;
+    min-width: 22px;
+    min-height: 22px;
+    margin: 2px;
 }
 
 treeview {
-    background: @orion_bg_secondary;
+    background: @base_color;
 }
 
 treeview:selected {
-    background: rgba(0, 180, 216, 0.2);
-    color: @orion_text_primary;
+    background: @selected_bg_color;
+    color: @selected_fg_color;
 }
 
-row {
+treeview.view:hover {
+    background: rgba(180, 190, 254, 0.1);
+}
+
+list {
+    background: @base_color;
+}
+
+list row {
     padding: 8px 12px;
     border-radius: 8px;
-    margin: 2px 4px;
+    transition: all 150ms ease;
 }
 
-row:hover {
-    background: rgba(255, 255, 255, 0.05);
+list row:hover {
+    background: rgba(180, 190, 254, 0.1);
 }
 
-row:selected {
-    background: rgba(0, 180, 216, 0.15);
+list row:selected {
+    background: @selected_bg_color;
+    color: @selected_fg_color;
 }
 
-.sidebar {
-    background: @orion_bg_secondary;
-    border-right: 1px solid @orion_border;
-}
-
-.view {
-    background: @orion_bg_secondary;
-}
-
-.navigation-sidebar {
-    background: @orion_bg_secondary;
-    padding: 8px;
-}
-
-.navigation-sidebar row {
-    padding: 10px 16px;
+tooltip {
+    background: @tooltip_bg_color;
+    color: @tooltip_fg_color;
+    border: 1px solid #363a4f;
     border-radius: 8px;
-    margin: 2px 0;
+    padding: 6px 12px;
 }
 
-.navigation-sidebar row:selected {
-    background: linear-gradient(135deg, rgba(0, 180, 216, 0.2), rgba(123, 47, 247, 0.15));
-    color: @orion_accent;
-    font-weight: 600;
-}
-
-.infobar {
-    background: @orion_bg_elevated;
-    border-radius: 8px;
-    padding: 12px;
-    margin: 8px;
-}
-
-.dialog {
-    border-radius: 16px;
-    box-shadow: 0 16px 64px rgba(0, 0, 0, 0.5);
-}
-
-.tooltip {
-    background: @orion_bg_elevated;
-    border: 1px solid @orion_border;
-    border-radius: 8px;
-    padding: 8px 12px;
-}
-
-.frame {
-    border: 1px solid @orion_border;
+.dialog-message-box {
     border-radius: 12px;
-    padding: 16px;
 }
 
-separator {
-    background: @orion_border;
-    min-height: 1px;
-    margin: 8px 0;
-}
-
-.linked button {
-    border-radius: 0;
-    margin: 0;
-}
-
-.linked button:first-child {
-    border-radius: 8px 0 0 8px;
-}
-
-.linked button:last-child {
-    border-radius: 0 8px 8px 0;
+.dialog-action-area button {
+    margin: 0 4px;
 }
 
 .spinner {
-    color: @orion_accent;
+    color: #8aadf4;
 }
 
-.calendar {
-    background: @orion_bg_secondary;
-    border-radius: 12px;
-    padding: 12px;
+checkbox {
+    border-radius: 4px;
+    border: 2px solid #6e738d;
+    min-width: 18px;
+    min-height: 18px;
 }
 
-.calendar:selected {
-    background: @orion_accent;
-    color: white;
+checkbox:checked {
+    background: #8aadf4;
+    border-color: #8aadf4;
+}
+
+radiobutton {
     border-radius: 50%;
+    border: 2px solid #6e738d;
+    min-width: 18px;
+    min-height: 18px;
 }
 
-.emoji-picker {
-    background: @orion_bg_elevated;
-    border-radius: 16px;
-    padding: 16px;
+radiobutton:checked {
+    border-color: #8aadf4;
+    background: #8aadf4;
+}
+
+.sidebar {
+    background: #181926;
+    padding: 8px;
+}
+
+.sidebar list row {
+    border-radius: 8px;
+    padding: 10px 16px;
+}
+
+.sidebar list row:selected {
+    background: rgba(180, 190, 254, 0.2);
+    color: #8aadf4;
 }
 EOF
 
-    # Install GTK4 theme
-    install -d "${pkgdir}/usr/share/themes/OrionOS-Dark/gtk-4.0"
-    cp "${pkgdir}/usr/share/themes/OrionOS-Dark/gtk-3.0/gtk.css" \
-       "${pkgdir}/usr/share/themes/OrionOS-Dark/gtk-4.0/gtk.css"
+    # ==================================================================
+    # GTK 4 Theme
+    # ==================================================================
+    install -d "$pkgdir/usr/share/themes/OrionOS-Dark/gtk-4.0"
+    cp "$pkgdir/usr/share/themes/OrionOS-Dark/gtk-3.0/gtk.css" \
+       "$pkgdir/usr/share/themes/OrionOS-Dark/gtk-4.0/gtk.css"
 
-    # ============================================
-    # OrionOS Icon Theme
-    # ============================================
-    install -d "${pkgdir}/usr/share/icons/OrionOS"
+    # ==================================================================
+    # Theme index.theme
+    # ==================================================================
+    cat > "$pkgdir/usr/share/themes/OrionOS-Dark/index.theme" << 'EOF'
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=OrionOS-Dark
+Comment=OrionOS dark theme - smooth and modern
+Encoding=UTF-8
 
-    cat > "${pkgdir}/usr/share/icons/OrionOS/index.theme" << 'EOF'
-[Icon Theme]
-Name=OrionOS
-Comment=OrionOS Icon Theme - Modern and minimal
-Inherits=Papirus,breeze,hicolor
-Directories=actions/16,actions/22,actions/24,apps/16,apps/22,apps/24,apps/32,apps/48,apps/64,apps/128,categories/16,categories/22,categories/24,mimes/16,mimes/22,mimes/24,mimes/32,mimes/48,places/16,places/22,places/24,places/32,places/48,places/64,places/128
-
-[actions/16]
-Size=16
-Context=Actions
-Type=Fixed
-
-[actions/22]
-Size=22
-Context=Actions
-Type=Fixed
-
-[actions/24]
-Size=24
-Context=Actions
-Type=Fixed
-
-[apps/16]
-Size=16
-Context=Applications
-Type=Fixed
-
-[apps/22]
-Size=22
-Context=Applications
-Type=Fixed
-
-[apps/24]
-Size=24
-Context=Applications
-Type=Fixed
-
-[apps/32]
-Size=32
-Context=Applications
-Type=Fixed
-
-[apps/48]
-Size=48
-Context=Applications
-Type=Fixed
-
-[apps/64]
-Size=64
-Context=Applications
-Type=Fixed
-
-[apps/128]
-Size=128
-Context=Applications
-Type=Fixed
-
-[categories/16]
-Size=16
-Context=Categories
-Type=Fixed
-
-[categories/22]
-Size=22
-Context=Categories
-Type=Fixed
-
-[categories/24]
-Size=24
-Context=Categories
-Type=Fixed
-
-[mimes/16]
-Size=16
-Context=MimeTypes
-Type=Fixed
-
-[mimes/22]
-Size=22
-Context=MimeTypes
-Type=Fixed
-
-[mimes/24]
-Size=24
-Context=MimeTypes
-Type=Fixed
-
-[mimes/32]
-Size=32
-Context=MimeTypes
-Type=Fixed
-
-[mimes/48]
-Size=48
-Context=MimeTypes
-Type=Fixed
-
-[places/16]
-Size=16
-Context=Places
-Type=Fixed
-
-[places/22]
-Size=22
-Context=Places
-Type=Fixed
-
-[places/24]
-Size=24
-Context=Places
-Type=Fixed
-
-[places/32]
-Size=32
-Context=Places
-Type=Fixed
-
-[places/48]
-Size=48
-Context=Places
-Type=Fixed
-
-[places/64]
-Size=64
-Context=Places
-Type=Fixed
-
-[places/128]
-Size=128
-Context=Places
-Type=Fixed
+[X-GNOME-Metatheme]
+GtkTheme=OrionOS-Dark
+MetacityTheme=OrionOS-Dark
+IconTheme=Papirus-Dark
+CursorTheme=Bibata-Modern-Ice
+CursorSize=24
 EOF
 
-    # ============================================
-    # OrionOS Cursor Theme
-    # ============================================
-    install -d "${pkgdir}/usr/share/icons/OrionOS-Cursor"
+    # ==================================================================
+    # Kvantum theme
+    # ==================================================================
+    install -d "$pkgdir/usr/share/Kvantum/OrionOS-Dark"
+    cat > "$pkgdir/usr/share/Kvantum/OrionOS-Dark/OrionOS-Dark.kvconfig" << 'EOF'
+[%General]
+theme=OrionOS-Dark
+author=OrionOS
+comment=OrionOS dark Kvantum theme
 
-    cat > "${pkgdir}/usr/share/icons/OrionOS-Cursor/index.theme" << 'EOF'
-[Icon Theme]
-Name=OrionOS-Cursor
-Comment=OrionOS Cursor Theme - Smooth and modern
-Inherits=breeze_cursors
+[GeneralColors]
+window.color=#1e2030
+base.color=#24273a
+alt.base.color=#1e2030
+text.color=#cad3f5
+window.text.color=#cad3f5
+button.text.color=#cad3f5
+disabled.text.color=#6e738d
+tooltip.text.color=#cad3f5
+highlight.text.color=#1e2030
+link.color=#8aadf4
+link.visited.color=#c6a0f6
+progress.indicator.color=#8aadf4
+
+[Hacks]
+transparent_dolphin_view=true
+transparent_ktitle_label=true
+transparent_menutitle=true
+disable_window_blur=false
 EOF
 
-    # ============================================
-    # OrionOS Sound Theme
-    # ============================================
-    install -d "${pkgdir}/usr/share/sounds/OrionOS"
+    # ==================================================================
+    # GRUB Theme
+    # ==================================================================
+    cat > "$pkgdir/usr/share/grub/themes/orionos/theme.txt" << 'EOF'
+# OrionOS GRUB Theme
+desktop-image: "background.png"
+desktop-color: "#1e2030"
 
-    cat > "${pkgdir}/usr/share/sounds/OrionOS/index.theme" << 'EOF'
-[Sound Theme]
-Name=OrionOS
-Directories=stereo
+# Boot menu
++ boot_menu {
+    left = 15%
+    top = 20%
+    width = 70%
+    height = 60%
+    item_font = "JetBrains Mono Regular 16"
+    item_color = "#cad3f5"
+    selected_item_font = "JetBrains Mono Bold 16"
+    selected_item_color = "#8aadf4"
+    selected_item_pixmap_style = "select_*.png"
+    item_height = 40
+    item_padding = 15
+    item_spacing = 8
+    icon_width = 32
+    icon_height = 32
+}
 
-[stereo]
-OutputProfile=stereo
+# Progress bar
++ progress_bar {
+    id = "__timeout__"
+    left = 15%
+    top = 85%
+    width = 70%
+    height = 20
+    font = "JetBrains Mono Regular 14"
+    fg_color = "#8aadf4"
+    bg_color = "#363a4f"
+    border_color = "#494d64"
+    show_text = true
+    text_color = "#cad3f5"
+}
+
+# Title
++ label {
+    left = 15%
+    top = 10%
+    width = 70%
+    align = "center"
+    font = "JetBrains Mono Bold 28"
+    color = "#b4befe"
+    text = "OrionOS"
+}
+
+# Version
++ label {
+    left = 15%
+    top = 14%
+    width = 70%
+    align = "center"
+    font = "JetBrains Mono Regular 14"
+    color = "#6e738d"
+    text = "Select OS to boot"
+}
 EOF
 
-    # Sound event definitions
-    cat > "${pkgdir}/usr/share/sounds/OrionOS/sounds.index" << 'EOF'
-# OrionOS Sound Events
-# These reference generated sounds that will be created during installation
+    # GRUB background (will be generated during install)
+    cat > "$pkgdir/usr/share/grub/themes/orionos/README" << 'EOF'
+OrionOS GRUB Theme
+===================
 
-desktop-login="stereo/desktop-login.oga"
-desktop-logout="stereo/desktop-logout.oga"
-dialog-information="stereo/dialog-information.oga"
-dialog-warning="stereo/dialog-warning.oga"
-dialog-error="stereo/dialog-error.oga"
-dialog-question="stereo/dialog-question.oga"
-message-new-instant="stereo/message-new-instant.oga"
-message-sent-instant="stereo/message-sent-instant.oga"
-complete="stereo/complete.oga"
-notification-generic="stereo/notification-generic.oga"
-notification-low="stereo/notification-low.oga"
-window-minimized="stereo/window-minimized.oga"
-window-maximized="stereo/window-maximized.oga"
-window-close="stereo/window-close.oga"
-window-switch="stereo/window-switch.oga"
-window-new="stereo/window-new.oga"
+This is the OrionOS bootloader theme. The background.png should be
+generated during installation from the wallpaper collection.
+
+Default resolution: 1920x1080
 EOF
 
-    # Create sound generation script
-    cat > "${pkgdir}/usr/share/orionos/scripts/generate-sounds.sh" << 'EOF'
-#!/bin/bash
-# Generate OrionOS sound theme using synthetic audio
-# Requires: sox, ffmpeg
-
-SOUND_DIR="/usr/share/sounds/OrionOS/stereo"
-mkdir -p "$SOUND_DIR"
-
-# System notification sound - subtle, modern
-sox -n -r 44100 -c 2 "${SOUND_DIR}/notification-generic.oga" \
-    synth 0.3 sine 800 sine 1200 \
-    fade 0.01 0.3 0.1 \
-    gain -10
-
-# Login sound - ascending, welcoming
-sox -n -r 44100 -c 2 "${SOUND_DIR}/desktop-login.oga" \
-    synth 1.5 sine 400-800 sine 600-1200 \
-    fade 0.05 1.5 0.3 \
-    gain -8
-
-# Logout sound - descending
-sox -n -r 44100 -c 2 "${SOUND_DIR}/desktop-logout.oga" \
-    synth 1.0 sine 800-400 sine 1200-600 \
-    fade 0.05 1.0 0.3 \
-    gain -8
-
-# Error sound - low, alert
-sox -n -r 44100 -c 2 "${SOUND_DIR}/dialog-error.oga" \
-    synth 0.4 sine 200 sine 150 \
-    fade 0.01 0.4 0.1 \
-    gain -5
-
-# Warning sound - attention
-sox -n -r 44100 -c 2 "${SOUND_DIR}/dialog-warning.oga" \
-    synth 0.5 sine 500 sine 700 \
-    fade 0.01 0.5 0.15 \
-    gain -7
-
-# Success sound - pleasant
-sox -n -r 44100 -c 2 "${SOUND_DIR}/complete.oga" \
-    synth 0.6 sine 523-659-784 \
-    fade 0.02 0.6 0.1 \
-    gain -8
-
-# Message sound - subtle
-sox -n -r 44100 -c 2 "${SOUND_DIR}/message-new-instant.oga" \
-    synth 0.2 sine 1000 sine 1400 \
-    fade 0.01 0.2 0.05 \
-    gain -12
-
-# Window switch - minimal
-sox -n -r 44100 -c 2 "${SOUND_DIR}/window-switch.oga" \
-    synth 0.1 sine 600 \
-    fade 0.005 0.1 0.02 \
-    gain -15
-
-chmod -R 644 "${SOUND_DIR}"/*.oga
-EOF
-    chmod +x "${pkgdir}/usr/share/orionos/scripts/generate-sounds.sh"
-
-    # ============================================
-    # Plymouth Boot Theme
-    # ============================================
-    cat > "${pkgdir}/usr/share/plymouth/themes/orionos/orionos.plymouth" << 'EOF'
+    # ==================================================================
+    # Plymouth Theme
+    # ==================================================================
+    cat > "$pkgdir/usr/share/plymouth/themes/orionos/orionos.plymouth" << 'EOF'
 [Plymouth Theme]
 Name=OrionOS
-Description=OrionOS Boot Theme
+Description=OrionOS boot splash theme
 ModuleName=script
 
 [script]
@@ -675,192 +548,115 @@ ImageDir=/usr/share/plymouth/themes/orionos
 ScriptFile=/usr/share/plymouth/themes/orionos/orionos.script
 EOF
 
-    cat > "${pkgdir}/usr/share/plymouth/themes/orionos/orionos.script" << 'EOF'
-// OrionOS Plymouth Boot Script
-// Creates a smooth, modern boot animation
+    cat > "$pkgdir/usr/share/plymouth/themes/orionos/orionos.script" << 'EOF'
+// OrionOS Plymouth Script
+// Simple animated boot splash
 
-var logo;
-var spinner;
-var dots = [];
+var logo = Image("logo.png");
+var logo_sprite = Sprite(logo);
+
+// Center the logo
+logo_sprite.SetX((Window.GetWidth() - logo.GetWidth()) / 2);
+logo_sprite.SetY((Window.GetHeight() - logo.GetHeight()) / 2 - 50);
+
+// Progress bar
 var progress = 0;
-var target_progress = 0;
-var boot_time = 0;
+var progress_bar_width = 300;
+var progress_bar_height = 4;
+var progress_bar_x = (Window.GetWidth() - progress_bar_width) / 2;
+var progress_bar_y = Window.GetHeight() / 2 + 80;
 
-function fun_check_progress_callback() {
-    return progress;
-}
+function refresh() {
+    // Update progress bar
+    progress = Math.Min(progress + 0.005, 1);
 
-fun dialog_setup() {
-    var background = Image.Text("", 0, 0, 0);
-    window.SetBackgroundTopColor(0.06, 0.06, 0.14);
-    window.SetBackgroundBottomColor(0.06, 0.06, 0.14);
+    // Draw progress bar background
+    var bg = Image(progress_bar_width, progress_bar_height);
+    bg.Fill(0x363a4f);
+    var bg_sprite = Sprite(bg);
+    bg_sprite.SetX(progress_bar_x);
+    bg_sprite.SetY(progress_bar_y);
 
-    // Logo - centered
-    logo = Image("logo.png");
-    if (!logo) {
-        logo = Image.Text("OrionOS", 0.00, 0.71, 1.0);
-    }
-
-    // Create spinner dots
-    for (var i = 0; i < 8; i++) {
-        var dot = Image("dot.png");
-        if (!dot) {
-            dot = Image.Text(".", 0.00, 0.71, 1.0);
-        }
-        dots[i] = {
-            image: dot,
-            angle: (i / 8) * Math.PI * 2
-        };
-    }
-}
-
-fun dialog_opacity() {
-    return 1.0;
-}
-
-fun refresh_callback() {
-    boot_time += 1;
-
-    // Smooth progress
-    progress += (target_progress - progress) * 0.1;
-
-    // Clear and redraw
-    window.Clear();
-
-    var screen_width = Window.GetWidth();
-    var screen_height = Window.GetHeight();
-    var center_x = screen_width / 2;
-    var center_y = screen_height / 2;
-
-    // Draw logo
-    if (logo) {
-        var logo_x = center_x - logo.GetWidth() / 2;
-        var logo_y = center_y - 80;
-        logo.Draw(logo_x, logo_y);
-    }
-
-    // Draw animated spinner
-    var spinner_radius = 30;
-    var spinner_y = center_y + 40;
-    for (var i = 0; i < 8; i++) {
-        var dot = dots[i];
-        var angle = dot.angle + (boot_time * 0.05);
-        var x = center_x + Math.cos(angle) * spinner_radius - dot.image.GetWidth() / 2;
-        var y = spinner_y + Math.sin(angle) * spinner_radius - dot.image.GetHeight() / 2;
-
-        // Fade dots based on position
-        var alpha = (Math.sin(angle) + 1) / 2 * 0.8 + 0.2;
-        dot.image.SetOpacity(alpha);
-        dot.image.Draw(x, y);
-    }
-
-    // Progress bar (subtle)
-    var bar_width = 200;
-    var bar_height = 3;
-    var bar_x = center_x - bar_width / 2;
-    var bar_y = center_y + 80;
-
-    // Background
-    var bar_bg = Image(bar_width, bar_height);
-    bar_bg.Draw(bar_x, bar_y);
-
-    // Progress fill
-    var fill_width = bar_width * progress;
+    // Draw progress bar fill
+    var fill_width = Math.Int(progress_bar_width * progress);
     if (fill_width > 0) {
-        var bar_fill = Image(fill_width, bar_height);
-        bar_fill.Draw(bar_x, bar_y);
+        var fill = Image(fill_width, progress_bar_height);
+        fill.Fill(0x8aadf4);
+        var fill_sprite = Sprite(fill);
+        fill_sprite.SetX(progress_bar_x);
+        fill_sprite.SetY(progress_bar_y);
     }
 
-    return 1;
+    // Animate logo (subtle pulse)
+    var scale = 1 + 0.02 * Math.Sin(progress * 20);
+    logo_sprite.SetOpacity(0.7 + 0.3 * Math.Sin(progress * 10));
 }
 
-fun message_callback(text) {
-    // Can display status messages
-}
-
-fun quit_callback() {
-    // Cleanup on boot complete
-}
-
-fun progress_callback(duration, progress_value) {
-    target_progress = progress_value;
-}
+Plymouth.SetRefreshFunction(refresh);
 EOF
 
-    # Create Plymouth logo placeholder generation
-    cat > "${pkgdir}/usr/share/plymouth/themes/orionos/generate-assets.sh" << 'EOF'
-#!/bin/bash
-# Generate Plymouth theme assets
-THEME_DIR="/usr/share/plymouth/themes/orionos"
-
-# Generate logo using ImageMagick or create a simple text-based logo
-cd "$THEME_DIR"
-
-# If ImageMagick is available, create a nice logo
-if command -v convert &>/dev/null; then
-    convert -size 200x60 xc:transparent \
-        -fill '#00B4D8' -gravity center \
-        -font "DejaVu-Sans-Bold" -pointsize 32 \
-        -draw "text 0,0 'OrionOS'" \
-        logo.png
-
-    # Generate spinner dot
-    convert -size 8x8 xc:transparent \
-        -fill '#00B4D8' -draw 'circle 4,4 4,1' \
-        dot.png
-else
-    # Create placeholder files
-    touch logo.png dot.png
-fi
-EOF
-    chmod +x "${pkgdir}/usr/share/plymouth/themes/orionos/generate-assets.sh"
-
-    # ============================================
-    # Default settings schema
-    # ============================================
-    install -d "${pkgdir}/usr/share/glib-2.0/schemas"
-    cat > "${pkgdir}/usr/share/glib-2.0/schemas/90_orionos.gschema.override" << 'EOF'
-# OrionOS Default Settings
-
-[org.gnome.desktop.interface]
-gtk-theme='OrionOS-Dark'
-icon-theme='OrionOS'
-cursor-theme='OrionOS-Cursor'
-font-name='SF Pro Display 11'
-monospace-font-name='SF Mono 10'
-document-font-name='SF Pro Display 11'
-enable-animations=true
-clock-show-seconds=false
-color-scheme='prefer-dark'
-
-[org.gnome.desktop.sound]
-theme-name='OrionOS'
-
-[org.gnome.desktop.wm.preferences]
-theme='OrionOS-Dark'
-titlebar-font='SF Pro Display Bold 11'
-titlebar-uses-system-font=false
-button-layout='close,minimize,maximize:'
-
-[org.gnome.desktop.background]
-show-desktop-icons=false
-
-[org.gnome.desktop.privacy]
-remember-recent-files=true
-remove-old-temp-files=true
-remove-old-trash-files=true
-old-files-age=30
-
-[org.gnome.desktop.session]
-session-name='orionos'
-idle-delay=900
-
-[org.gnome.settings-daemon.plugins.power]
-sleep-inactive-ac-timeout=1800
-sleep-inactive-battery-timeout=900
-sleep-inactive-ac-type='suspend'
-sleep-inactive-battery-type='suspend'
+    # ==================================================================
+    # Default user configuration
+    # ==================================================================
+    cat > "$pkgdir/etc/skel/.config/gtk-3.0/settings.ini" << 'EOF'
+[Settings]
+gtk-theme-name=OrionOS-Dark
+gtk-icon-theme-name=Papirus-Dark
+gtk-font-name=JetBrains Mono 11
+gtk-cursor-theme-name=Bibata-Modern-Ice
+gtk-cursor-theme-size=24
+gtk-toolbar-style=GTK_TOOLBAR_BOTH_HORIZ
+gtk-toolbar-icon-size=GTK_ICON_SIZE_LARGE_TOOLBAR
+gtk-button-images=0
+gtk-menu-images=0
+gtk-enable-event-sounds=0
+gtk-enable-input-feedback-sounds=0
+gtk-xft-antialias=1
+gtk-xft-hinting=1
+gtk-xft-hintstyle=hintfull
+gtk-xft-rgba=rgb
+gtk-application-prefer-dark-theme=1
+gtk-decoration-layout=icon:minimize,maximize,close
 EOF
 
-    log_info "OrionOS Themes installed"
+    cat > "$pkgdir/etc/skel/.config/gtk-4.0/settings.ini" << 'EOF'
+[Settings]
+gtk-theme-name=OrionOS-Dark
+gtk-icon-theme-name=Papirus-Dark
+gtk-font-name=JetBrains Mono 11
+gtk-cursor-theme-name=Bibata-Modern-Ice
+gtk-cursor-theme-size=24
+gtk-application-prefer-dark-theme=1
+gtk-decoration-layout=icon:minimize,maximize,close
+EOF
+
+    cat > "$pkgdir/etc/skel/.config/Kvantum/kvantum.kvconfig" << 'EOF'
+[General]
+theme=OrionOS-Dark
+EOF
+
+    # ==================================================================
+    # Documentation
+    # ==================================================================
+    install -Dm644 /dev/stdin "$pkgdir/usr/share/doc/orionos-themes/README" << 'EOF'
+OrionOS Themes
+===============
+
+This package provides the OrionOS visual identity:
+
+Themes:
+- OrionOS-Dark (GTK3/GTK4): Catppuccin Macchiato-based dark theme
+- OrionOS-Dark (Kvantum): Qt application theming
+- GRUB theme: Bootloader styling
+- Plymouth theme: Boot splash
+
+Default configuration:
+- Icon theme: Papirus-Dark
+- Cursor: Bibata-Modern-Ice
+- Font: JetBrains Mono
+
+Installation:
+Themes are automatically applied when the package is installed
+alongside orionos-desktop.
+EOF
 }

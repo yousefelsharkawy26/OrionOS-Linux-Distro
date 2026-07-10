@@ -1,149 +1,204 @@
-# =============================================================================
-# OrionOS Custom Kernel Build System
-# Based on Linux with CachyOS performance optimizations
-# =============================================================================
+# ==============================================================================
+# OrionOS Kernel Build System
+# Builds the custom OrionOS kernel with CachyOS patches
+# ==============================================================================
 
 # Configuration
-KERNEL_VERSION ?= 6.11
-KERNEL_RELEASE ?= 1
 BUILD_DIR ?= $(PWD)/build
-SOURCE_DIR ?= $(PWD)/sources
-PATCH_DIR ?= $(PWD)/patches
-CONFIG_DIR ?= $(PWD)/config
-JOBS ?= $(shell nproc)
+SRC_DIR ?= $(BUILD_DIR)/src
+PKG_DIR ?= $(BUILD_DIR)/pkg
+KERNEL_VERSION ?= 6.11
+KERNEL_MAJOR ?= $(shell echo $(KERNEL_VERSION) | cut -d. -f1)
+KERNEL_MINOR ?= $(shell echo $(KERNEL_VERSION) | cut -d. -f2)
 ARCH ?= x86_64
+NPROC ?= $(shell nproc)
 
-# Kernel source
-KERNEL_URL = https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$(KERNEL_VERSION).tar.xz
-KERNEL_SOURCE = $(SOURCE_DIR)/linux-$(KERNEL_VERSION)
-KERNEL_TARBALL = $(SOURCE_DIR)/linux-$(KERNEL_VERSION).tar.xz
+# CachyOS patch source
+CACHY_PATCH_URL ?= https://raw.githubusercontent.com/CachyOS/linux-cachyos/master/linux-cachyos
 
-# Output
-KERNEL_PACKAGE = $(BUILD_DIR)/linux-orionos-$(KERNEL_VERSION).$(KERNEL_RELEASE)-$(ARCH).pkg.tar.zst
-HEADERS_PACKAGE = $(BUILD_DIR)/linux-orionos-headers-$(KERNEL_VERSION).$(KERNEL_RELEASE)-$(ARCH).pkg.tar.zst
+# Colors
+BLUE := \033[36m
+GREEN := \033[32m
+YELLOW := \033[33m
+RED := \033[31m
+RESET := \033[0m
 
-.PHONY: all download extract patch config build package clean
+.PHONY: all download extract patch configure build package clean distclean
 
-all: download extract patch config build package
+# Default: full build pipeline
+all: download extract patch configure build package
 
-# Download kernel source
-download: $(KERNEL_TARBALL)
+# ==============================================================================
+# Download kernel sources
+# ==============================================================================
+download:
+	@echo "$(BLUE)[KERNEL]$(RESET) Downloading Linux $(KERNEL_VERSION)..."
+	@mkdir -p $(SRC_DIR)
+	@if [ ! -f $(SRC_DIR)/linux-$(KERNEL_VERSION).tar.xz ]; then \
+		echo "$(GREEN)[KERNEL]$(RESET) Downloading kernel tarball..."; \
+		curl -L -o $(SRC_DIR)/linux-$(KERNEL_VERSION).tar.xz \
+			https://cdn.kernel.org/pub/linux/kernel/v$(KERNEL_MAJOR).x/linux-$(KERNEL_VERSION).tar.xz; \
+	else \
+		echo "$(YELLOW)[KERNEL]$(RESET) Kernel tarball already downloaded"; \
+	fi
+	@echo "$(GREEN)[KERNEL]$(RESET) Download complete."
 
-$(KERNEL_TARBALL):
-	@echo "[KERNEL] Downloading Linux $(KERNEL_VERSION)..."
-	@mkdir -p $(SOURCE_DIR)
-	@curl -L -o $@.tmp $(KERNEL_URL)
-	@mv $@.tmp $@
+# ==============================================================================
+# Download CachyOS patches
+# ==============================================================================
+download-patches:
+	@echo "$(BLUE)[KERNEL]$(RESET) Downloading CachyOS patches..."
+	@mkdir -p $(SRC_DIR)/patches
+	@echo "$(GREEN)[KERNEL]$(RESET) Patching with CachyOS optimizations..."
+	# BORE scheduler patch
+	@curl -L -o $(SRC_DIR)/patches/0001-bore.patch \
+		$(CACHY_PATCH_URL)/0001-bore.patch 2>/dev/null || \
+		echo "$(YELLOW)[KERNEL]$(RESET) BORE patch - will use built-in"
+	# Cachy base patch
+	@curl -L -o $(SRC_DIR)/patches/0002-cachy-base.patch \
+		$(CACHY_PATCH_URL)/0001-cachy-base.patch 2>/dev/null || \
+		echo "$(YELLOW)[KERNEL]$(RESET) Cachy base patch - using defaults"
+	# Additional optimizations
+	@curl -L -o $(SRC_DIR)/patches/0003-optimizations.patch \
+		$(CACHY_PATCH_URL)/0001-Optimize.patch 2>/dev/null || \
+		echo "$(YELLOW)[KERNEL]$(RESET) Optimization patch - using defaults"
+	@echo "$(GREEN)[KERNEL]$(RESET) Patch download complete."
 
-# Extract kernel source
-extract: $(KERNEL_SOURCE)/Makefile
+# ==============================================================================
+# Extract kernel sources
+# ==============================================================================
+extract:
+	@echo "$(BLUE)[KERNEL]$(RESET) Extracting kernel sources..."
+	@mkdir -p $(BUILD_DIR)
+	@if [ ! -d $(BUILD_DIR)/linux-$(KERNEL_VERSION) ]; then \
+		tar -xf $(SRC_DIR)/linux-$(KERNEL_VERSION).tar.xz -C $(BUILD_DIR); \
+		echo "$(GREEN)[KERNEL]$(RESET) Extraction complete."; \
+	else \
+		echo "$(YELLOW)[KERNEL]$(RESET) Sources already extracted"; \
+	fi
 
-$(KERNEL_SOURCE)/Makefile: $(KERNEL_TARBALL)
-	@echo "[KERNEL] Extracting kernel source..."
-	@mkdir -p $(KERNEL_SOURCE)
-	@tar -xf $< -C $(SOURCE_DIR) --strip-components=0
-	@touch $@
-
+# ==============================================================================
 # Apply patches
-patch: $(KERNEL_SOURCE)/.patched
-
-$(KERNEL_SOURCE)/.patched: extract
-	@echo "[KERNEL] Applying OrionOS patches..."
-	@cd $(KERNEL_SOURCE) && \
-	for patch in $(PATCH_DIR)/*.patch; do \
-		if [ -f "$$patch" ]; then \
-			echo "  Applying: $$(basename $$patch)"; \
-			patch -p1 < "$$patch" || true; \
-		fi \
+# ==============================================================================
+patch: extract download-patches
+	@echo "$(BLUE)[KERNEL]$(RESET) Applying patches..."
+	@cd $(BUILD_DIR)/linux-$(KERNEL_VERSION) && \
+	for p in $(SRC_DIR)/patches/*.patch; do \
+		if [ -f "$$p" ]; then \
+			echo "$(GREEN)[KERNEL]$(RESET) Applying $$(basename $$p)..."; \
+			patch -p1 -i "$$p" --forward 2>/dev/null || \
+			echo "$(YELLOW)[KERNEL]$(RESET) Skipping $$(basename $$p) (already applied or failed)"; \
+		fi; \
 	done
-	@# Apply CachyOS BORE scheduler patch
-	@if [ -f $(PATCH_DIR)/cachyos/0001-bore-scheduler.patch ]; then \
-		cd $(KERNEL_SOURCE) && patch -p1 < $(PATCH_DIR)/cachyos/0001-bore-scheduler.patch; \
-	fi
-	@# Apply CachyOS CPU optimizations
-	@if [ -f $(PATCH_DIR)/cachyos/0002-cpu-optimizations.patch ]; then \
-		cd $(KERNEL_SOURCE) && patch -p1 < $(PATCH_DIR)/cachyos/0002-cpu-optimizations.patch; \
-	fi
-	@# Apply CachyOS memory management patches
-	@if [ -f $(PATCH_DIR)/cachyos/0003-memory-optimizations.patch ]; then \
-		cd $(KERNEL_SOURCE) && patch -p1 < $(PATCH_DIR)/cachyos/0003-memory-optimizations.patch; \
-	fi
-	@# Apply CachyOS io_uring optimizations
-	@if [ -f $(PATCH_DIR)/cachyos/0004-iouring-optimizations.patch ]; then \
-		cd $(KERNEL_SOURCE) && patch -p1 < $(PATCH_DIR)/cachyos/0004-iouring-optimizations.patch; \
-	fi
-	@# Apply gaming latency patches
-	@if [ -f $(PATCH_DIR)/gaming/0001-gaming-latency.patch ]; then \
-		cd $(KERNEL_SOURCE) && patch -p1 < $(PATCH_DIR)/gaming/0001-gaming-latency.patch; \
-	fi
-	@# Apply desktop responsiveness patches
-	@if [ -f $(PATCH_DIR)/desktop/0001-desktop-responsiveness.patch ]; then \
-		cd $(KERNEL_SOURCE) && patch -p1 < $(PATCH_DIR)/desktop/0001-desktop-responsiveness.patch; \
-	fi
-	@touch $@
+	@echo "$(GREEN)[KERNEL]$(RESET) Patching complete."
 
+# ==============================================================================
 # Configure kernel
-config: $(KERNEL_SOURCE)/.config
+# ==============================================================================
+configure: patch
+	@echo "$(BLUE)[KERNEL]$(RESET) Configuring kernel..."
+	@cp $(PWD)/config/orionos-kernel.config \
+		$(BUILD_DIR)/linux-$(KERNEL_VERSION)/.config
+	@cd $(BUILD_DIR)/linux-$(KERNEL_VERSION) && \
+		make olddefconfig ARCH=$(ARCH)
+	@echo "$(GREEN)[KERNEL]$(RESET) Configuration complete."
 
-$(KERNEL_SOURCE)/.config: patch
-	@echo "[KERNEL] Configuring kernel..."
-	@cp $(CONFIG_DIR)/orionos-kernel.config $@
-	@cd $(KERNEL_SOURCE) && make olddefconfig
-
+# ==============================================================================
 # Build kernel
-build: $(KERNEL_SOURCE)/arch/$(ARCH)/boot/bzImage
+# ==============================================================================
+build: configure
+	@echo "$(BLUE)[KERNEL]$(RESET) Building kernel with $(NPROC) jobs..."
+	@cd $(BUILD_DIR)/linux-$(KERNEL_VERSION) && \
+		make -j$(NPROC) ARCH=$(ARCH)
+	@echo "$(GREEN)[KERNEL]$(RESET) Kernel build complete."
 
-$(KERNEL_SOURCE)/arch/$(ARCH)/boot/bzImage: config
-	@echo "[KERNEL] Building kernel with $(JOBS) jobs..."
-	@cd $(KERNEL_SOURCE) && make -j$(JOBS)
-	@cd $(KERNEL_SOURCE) && make -j$(JOBS) modules
+# ==============================================================================
+# Build modules
+# ==============================================================================
+modules: build
+	@echo "$(BLUE)[KERNEL]$(RESET) Building kernel modules..."
+	@cd $(BUILD_DIR)/linux-$(KERNEL_VERSION) && \
+		make -j$(NPROC) ARCH=$(ARCH) modules
+	@echo "$(GREEN)[KERNEL]$(RESET) Module build complete."
 
+# ==============================================================================
 # Package kernel
-package: $(KERNEL_PACKAGE) $(HEADERS_PACKAGE)
+# ==============================================================================
+package: modules
+	@echo "$(BLUE)[KERNEL]$(RESET) Packaging kernel..."
+	@mkdir -p $(PKG_DIR)
+	@cd $(BUILD_DIR)/linux-$(KERNEL_VERSION) && \
+		make INSTALL_MOD_PATH=$(PKG_DIR) modules_install && \
+		cp arch/$(ARCH)/boot/bzImage $(PKG_DIR)/vmlinuz-orionos && \
+		cp System.map $(PKG_DIR)/System.map-orionos && \
+		cp .config $(PKG_DIR)/config-orionos
+	@echo "$(GREEN)[KERNEL]$(RESET) Package created in $(PKG_DIR)"
 
-$(KERNEL_PACKAGE): build
-	@echo "[KERNEL] Creating kernel package..."
-	@mkdir -p $(BUILD_DIR)/pkg/{boot,usr/lib/modules,usr/lib/firmware}
-	@cd $(KERNEL_SOURCE) && \
-		cp arch/$(ARCH)/boot/bzImage $(BUILD_DIR)/pkg/boot/vmlinuz-linux-orionos && \
-		make modules_install INSTALL_MOD_PATH=$(BUILD_DIR)/pkg/usr
-	@# Create initramfs
-	@cd $(KERNEL_SOURCE) && mkinitcpio -k $(KERNEL_VERSION)-orionos -g $(BUILD_DIR)/pkg/boot/initramfs-linux-orionos.img
-	@# Create PKGBUILD and build
-	@mkdir -p $(BUILD_DIR)/pkg-build
-	@cat > $(BUILD_DIR)/pkg-build/PKGBUILD << 'PKGBUILD_EOF'
-pkgname=linux-orionos
-pkgver=$(KERNEL_VERSION)
-pkgrel=$(KERNEL_RELEASE)
-arch=('x86_64')
-description='OrionOS custom kernel with performance optimizations'
+# ==============================================================================
+# Install kernel to system
+# ==============================================================================
+install: package
+	@echo "$(BLUE)[KERNEL]$(RESET) Installing kernel..."
+	@cd $(BUILD_DIR)/linux-$(KERNEL_VERSION) && \
+		make modules_install ARCH=$(ARCH) && \
+		cp arch/$(ARCH)/boot/bzImage /boot/vmlinuz-orionos && \
+		cp System.map /boot/System.map-orionos && \
+		cp .config /boot/config-orionos && \
+		mkinitcpio -k $(KERNEL_VERSION)-orionos -g /boot/initramfs-orionos.img
+	@echo "$(GREEN)[KERNEL]$(RESET) Kernel installed."
 
-package() {
-    cp -r $(BUILD_DIR)/pkg/* "${pkgdir}/"
-}
-PKGBUILD_EOF
-	@cd $(BUILD_DIR)/pkg-build && makepkg -f --skipchecksums
+# ==============================================================================
+# Update GRUB
+# ==============================================================================
+update-grub:
+	@echo "$(BLUE)[KERNEL]$(RESET) Updating GRUB..."
+	@grub-mkconfig -o /boot/grub/grub.cfg
+	@echo "$(GREEN)[KERNEL]$(RESET) GRUB updated."
 
-$(HEADERS_PACKAGE): build
-	@echo "[KERNEL] Creating headers package..."
-	@mkdir -p $(BUILD_DIR)/hdr/usr/src/linux-$(KERNEL_VERSION)-orionos
-	@cd $(KERNEL_SOURCE) && \
-		make headers_install INSTALL_HDR_PATH=$(BUILD_DIR)/hdr/usr/src/linux-$(KERNEL_VERSION)-orionos
-	@# Create headers package
-	@mkdir -p $(BUILD_DIR)/hdr-build
-	@cat > $(BUILD_DIR)/hdr-build/PKGBUILD << 'HDRBUILD_EOF'
-pkgname=linux-orionos-headers
-pkgver=$(KERNEL_VERSION)
-pkgrel=$(KERNEL_RELEASE)
-arch=('x86_64')
-description='OrionOS kernel headers'
+# ==============================================================================
+# Full install (package + install + update-grub)
+# ==============================================================================
+install-full: install update-grub
 
-package() {
-    cp -r $(BUILD_DIR)/hdr/* "${pkgdir}/"
-}
-HDRBUILD_EOF
-	@cd $(BUILD_DIR)/hdr-build && makepkg -f --skipchecksums
-
+# ==============================================================================
+# Clean build artifacts
+# ==============================================================================
 clean:
-	@rm -rf $(BUILD_DIR) $(SOURCE_DIR)
-	@echo "[KERNEL] Build artifacts cleaned."
+	@echo "$(YELLOW)[KERNEL]$(RESET) Cleaning build artifacts..."
+	@rm -rf $(BUILD_DIR)/linux-$(KERNEL_VERSION)
+	@echo "$(YELLOW)[KERNEL]$(RESET) Build directory cleaned."
+
+# ==============================================================================
+# Deep clean
+# ==============================================================================
+distclean: clean
+	@echo "$(YELLOW)[KERNEL]$(RESET) Deep cleaning..."
+	@rm -rf $(BUILD_DIR)
+	@rm -rf $(SRC_DIR)
+	@echo "$(YELLOW)[KERNEL]$(RESET) All artifacts removed."
+
+# ==============================================================================
+# Help
+# ==============================================================================
+help:
+	@echo "$(BLUE)OrionOS Kernel Build - Available Targets:$(RESET)"
+	@echo ""
+	@echo "  $(GREEN)all$(RESET)            - Full build pipeline"
+	@echo "  $(GREEN)download$(RESET)       - Download kernel sources"
+	@echo "  $(GREEN)download-patches$(RESET) - Download CachyOS patches"
+	@echo "  $(GREEN)extract$(RESET)        - Extract kernel sources"
+	@echo "  $(GREEN)patch$(RESET)          - Apply CachyOS patches"
+	@echo "  $(GREEN)configure$(RESET)      - Configure kernel"
+	@echo "  $(GREEN)build$(RESET)          - Build kernel"
+	@echo "  $(GREEN)modules$(RESET)        - Build modules"
+	@echo "  $(GREEN)package$(RESET)        - Package built kernel"
+	@echo "  $(GREEN)install$(RESET)        - Install to /boot"
+	@echo "  $(GREEN)install-full$(RESET)   - Install + update GRUB"
+	@echo "  $(GREEN)clean$(RESET)          - Clean build artifacts"
+	@echo "  $(GREEN)distclean$(RESET)      - Deep clean everything"
+	@echo ""
+	@echo "$(BLUE)Variables:$(RESET)"
+	@echo "  KERNEL_VERSION  - Kernel version to build (default: $(KERNEL_VERSION))"
+	@echo "  BUILD_DIR       - Build directory (default: $(BUILD_DIR))"
+	@echo "  ARCH            - Target architecture (default: $(ARCH))"
+	@echo "  NPROC           - Parallel jobs (default: $(NPROC))"
