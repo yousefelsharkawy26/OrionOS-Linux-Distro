@@ -1,0 +1,66 @@
+* {
+    font-family: "Noto Sans", "Noto Sans CJK SC", monospace;
+    font-size: 13px;
+}
+
+window#waybar {
+    background-color: rgba(30, 30, 46, 0.9);
+    color: #cdd6f4;
+    border-radius: 10px;
+    border: 1px solid rgba(137, 180, 250, 0.3);
+}
+
+#workspaces button {
+    padding: 0 5px;
+    color: #6c7086;
+    border-radius: 5px;
+    margin: 3px;
+}
+
+#workspaces button.active {
+    color: #1e1e2e;
+    background-color: #89b4fa;
+}
+
+#workspaces button:hover {
+    background-color: #313244;
+}
+
+#clock, #battery, #pulseaudio, #network, #bluetooth, #tray, #custom-power {
+    padding: 0 10px;
+    margin: 3px 0;
+    border-radius: 5px;
+}
+
+#battery.warning {
+    color: #fab387;
+}
+
+#battery.critical {
+    color: #f38ba8;
+}
+
+#battery.charging {
+    color: #a6e3a1;
+}
+
+#pulseaudio {
+    color: #89dceb;
+}
+
+#network {
+    color: #cba6f7;
+}
+
+#bluetooth {
+    color: #94e2d5;
+}
+
+#tray {
+    color: #cdd6f4;
+}
+
+#custom-power {
+    color: #f38ba8;
+    padding: 0 12px;
+}

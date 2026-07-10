@@ -1,0 +1,31 @@
+# Build directory
+build/
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Package cache
+.cache/
+
+# ISO output
+*.iso
+*.iso.sha256
+*.iso.sha512
+*.iso.md5
+
+# Editor files
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.tar.gz
+*.tar.xz
+*.tar.zst
+*.pkg.tar.*
+*.log

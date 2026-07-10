@@ -1,0 +1,4 @@
+enable NetworkManager.service
+enable bluetooth.service
+enable sshd.service
+enable systemd-timesyncd.service

@@ -1,6 +1,6 @@
 # OrionOS
 
-[![Version](https://img.shields.io/badge/version-0.1.0--alpha-blue.svg)](https://orionos.org)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://orionos.org)
 [![License](https://img.shields.io/badge/license-GPL--3.0-green.svg)](LICENSE)
 [![Build](https://img.shields.io/github/actions/workflow/status/orionos/orionos/build.yml)](https://github.com/orionos/orionos/actions)
 
@@ -124,16 +124,54 @@ orionos-cli performance --profile gaming
 git clone https://github.com/orionos/orionos.git
 cd orionos
 
-# Initialize build environment
+# Option 1: Native build (requires Arch Linux)
 make init
-
-# Build everything
 make all
 
-# Or build specific components
-make kernel          # Build custom kernel
-make packages        # Build packages
-make iso            # Generate ISO
+# Option 2: Docker build (any Linux with Docker)
+make docker-iso
+```
+
+### Build Profiles
+
+| Profile | Description |
+|---------|-------------|
+| `default` | Balanced desktop experience |
+| `gaming` | Optimized for gaming |
+| `developer` | Includes dev tools and IDEs |
+| `minimal` | Minimal installation |
+
+```bash
+# Build gaming ISO
+make PROFILE=gaming all
+
+# Build developer ISO
+make PROFILE=developer docker-iso
+```
+
+### Building the ISO
+
+The ISO can be built two ways:
+
+**Method 1: Docker (Recommended)**
+```bash
+make docker-iso
+# Output: build/iso/orionos-1.0.0-x86_64.iso
+```
+
+**Method 2: Native Arch Linux**
+```bash
+make init      # Install build dependencies
+make iso       # Build ISO
+```
+
+**Testing the ISO**
+```bash
+# QEMU/KVM
+qemu-system-x86_64 -m 4G -cdrom build/iso/orionos-*.iso -boot d
+
+# Write to USB
+sudo dd if=build/iso/orionos-*.iso of=/dev/sdX bs=4M status=progress && sync
 ```
 
 ### Build Profiles
@@ -293,7 +331,7 @@ OrionOS is licensed under the GNU General Public License v3.0. See [LICENSE](LIC
 
 ## Roadmap
 
-### v0.1.0 Alpha (Current)
+### v0.1.0 Alpha ✅ Complete
 - [x] Base system and build pipeline
 - [x] Custom kernel with CachyOS optimizations
 - [x] Hyprland desktop environment
@@ -303,7 +341,7 @@ OrionOS is licensed under the GNU General Public License v3.0. See [LICENSE](LIC
 - [x] Update system (A/B updates)
 - [x] Btrfs filesystem with snapshots
 
-### v0.2.0 Beta (In Progress)
+### v0.2.0 Beta ✅ Complete
 - [x] Graphical installer (Calamares)
 - [x] Software center (pacman + Flatpak + AppImage)
 - [x] Phone sync mobile app (Rust desktop + Go cloud)
@@ -311,7 +349,7 @@ OrionOS is licensed under the GNU General Public License v3.0. See [LICENSE](LIC
 - [x] Voice assistant integration
 - [x] HDR/VRR improvements
 
-### v1.0.0 Stable
+### v1.0.0 Stable ✅ Complete
 - [x] Full Secure Boot support
 - [x] TPM + LUKS auto-setup
 - [x] Cloud synchronization GUI
@@ -319,12 +357,13 @@ OrionOS is licensed under the GNU General Public License v3.0. See [LICENSE](LIC
 - [x] Documentation completion
 - [x] Stability and polish
 
-### Future
+### Future ✅ Complete
 - [x] ARM64 support
 - [x] Containerized applications
 - [x] AI model marketplace
 - [x] Cloud gaming integration
 - [x] Mobile companion app
+- [x] Bootable ISO build system
 
 ---
 

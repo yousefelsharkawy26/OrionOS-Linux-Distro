@@ -1,0 +1,9 @@
+NAME="OrionOS"
+VERSION="1.0.0"
+ID=orionos
+ID_LIKE=arch
+PRETTY_NAME="OrionOS 1.0.0"
+ANSI_COLOR="38;2;180;190;254"
+HOME_URL="https://orionos.org"
+SUPPORT_URL="https://forum.orionos.org"
+BUG_REPORT_URL="https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro/issues"

@@ -1,0 +1,129 @@
+# OrionOS base packages
+
+# Base system
+base
+base-devel
+linux
+linux-headers
+linux-firmware
+mkinitcpio
+mkinitcpio-archiso
+
+# Boot
+grub
+grub-btrfs
+efibootmgr
+os-prober
+dosfstools
+syslinux
+
+# Btrfs
+btrfs-progs
+snapper
+snap-pac
+
+# Network
+networkmanager
+iwd
+openssh
+curl
+wget
+openbsd-netcat
+
+# Filesystem tools
+ntfs-3g
+exfatprogs
+udisks2
+
+# Compression
+tar
+gzip
+bzip2
+xz
+zstd
+zip
+unzip
+
+# Text editors
+nano
+vim
+
+# Shell
+bash
+bash-completion
+zsh
+zsh-completions
+
+# System utilities
+htop
+btop
+inxi
+pciutils
+usbutils
+lsof
+lm_sensors
+hardinfo2
+
+# Pacman tools
+pacman-contrib
+paru
+
+# Fonts
+noto-fonts
+noto-fonts-cjk
+noto-fonts-emoji
+noto-fonts-extra
+ttf-terminus-nerd
+
+# Display / GPU
+mesa
+mesa-utils
+vulkan-intel
+vulkan-radeon
+libva-mesa-driver
+mesa-vdpau
+xorg-xrandr
+xorg-xbacklight
+
+# Audio
+pipewire
+pipewire-pulse
+pipewire-jack
+pipewire-alsa
+wireplumber
+playerctl
+
+# Bluetooth
+bluez
+bluez-utils
+
+# Desktop
+hyprland
+hyprlock
+hypridle
+hyprpaper
+waybar
+wofi
+kitty
+foot
+neovim
+dunst
+grim
+slurp
+ wl-clipboard
+polkit
+xdg-desktop-portal-hyprland
+qt6-base
+qt6-wayland
+
+# Calamares installer
+calamares
+calamares-orionos
+
+# OrionOS core packages
+orionos-config
+orionos-desktop
+orionos-security
+orionos-services
+orionos-themes
+orionos-utils
