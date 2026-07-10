@@ -1,0 +1,344 @@
+# Maintainer: OrionOS Team <team@orionos.org>
+pkgname=orionos-utils
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="OrionOS Utility Scripts and Tools"
+arch=('any')
+url="https://orionos.org"
+license=('GPL-3.0')
+depends=('bash' 'python' 'python-psutil')
+source=()
+sha256sums=()
+
+package() {
+    install -d "${pkgdir}/usr/bin"
+    install -d "${pkgdir}/usr/share/orionos/bin"
+    install -d "${pkgdir}/usr/share/orionos/scripts"
+    install -d "${pkgdir}/etc/bash_completion.d"
+
+    # OrionOS Control Center CLI
+    cat > "${pkgdir}/usr/bin/orionos-cli" << 'EOF'
+#!/usr/bin/env python3
+"""
+OrionOS Command Line Interface
+Central management tool for OrionOS systems
+"""
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+VERSION = "0.1.0"
+
+class OrionOSCLI:
+    def __init__(self):
+        self.config_dir = Path.home() / '.config/orionos'
+        self.config_file = self.config_dir / 'config.json'
+        self.config = self._load_config()
+
+    def _load_config(self):
+        if self.config_file.exists():
+            return json.loads(self.config_file.read_text())
+        return {}
+
+    def _save_config(self):
+        self.config_dir.mkdir(parents=True, exist_ok=True)
+        self.config_file.write_text(json.dumps(self.config, indent=2))
+
+    def version(self):
+        """Show version information"""
+        print(f"OrionOS CLI {VERSION}")
+        print(f"Distribution: OrionOS")
+        try:
+            with open('/etc/orionos-release') as f:
+                for line in f:
+                    if '=' in line:
+                        print(line.strip())
+        except FileNotFoundError:
+            pass
+
+    def system_info(self):
+        """Show system information"""
+        import psutil
+
+        print("=" * 50)
+        print("OrionOS System Information")
+        print("=" * 50)
+
+        # OS
+        try:
+            with open('/etc/orionos-release') as f:
+                for line in f:
+                    if line.startswith('PRETTY_NAME='):
+                        print(f"OS: {line.split('=')[1].strip().strip('\"')}")
+        except:
+            print("OS: OrionOS")
+
+        # Kernel
+        print(f"Kernel: {os.uname().release}")
+        print(f"Architecture: {os.uname().machine}")
+
+        # CPU
+        cpu_info = psutil.cpu_freq()
+        print(f"CPU: {psutil.cpu_count()} cores @ {cpu_info.current:.0f} MHz")
+        print(f"CPU Usage: {psutil.cpu_percent()}%")
+
+        # Memory
+        mem = psutil.virtual_memory()
+        print(f"Memory: {mem.used // (1024**3)} GB / {mem.total // (1024**3)} GB ({mem.percent}%)")
+
+        # Disk
+        disk = psutil.disk_usage('/')
+        print(f"Disk: {disk.used // (1024**3)} GB / {disk.total // (1024**3)} GB ({disk.percent}%)")
+
+        # Battery
+        if hasattr(psutil, 'sensors_battery'):
+            battery = psutil.sensors_battery()
+            if battery:
+                print(f"Battery: {battery.percent}% {'(Charging)' if battery.power_plugged else '(Discharging)'}")
+
+        # Network
+        net_io = psutil.net_io_counters()
+        print(f"Network: ↑ {net_io.bytes_sent // (1024**2)} MB ↓ {net_io.bytes_recv // (1024**2)} MB")
+
+        # Uptime
+        uptime = psutil.boot_time()
+        from datetime import datetime
+        uptime_str = datetime.fromtimestamp(uptime).strftime('%Y-%m-%d %H:%M:%S')
+        print(f"Uptime since: {uptime_str}")
+
+    def update(self, args):
+        """Handle system updates"""
+        if args.check:
+            subprocess.run(['/usr/share/orionos/services/update-service', 'check'])
+        elif args.apply:
+            subprocess.run(['/usr/share/orionos/services/update-service', 'apply'])
+        elif args.rollback:
+            if input("Are you sure you want to rollback? [y/N] ").lower() == 'y':
+                subprocess.run(['/usr/share/orionos/services/update-service', 'rollback'])
+        else:
+            subprocess.run(['/usr/share/orionos/services/update-service', 'status'])
+
+    def performance(self, args):
+        """Handle performance settings"""
+        if args.profile:
+            profiles = ['performance', 'balanced', 'powersave', 'gaming']
+            if args.profile in profiles:
+                config_path = Path('/etc/orionos/services/performance.conf')
+                config_path.parent.mkdir(parents=True, exist_ok=True)
+                config_path.write_text(f"power_profile={args.profile}\nauto_performance=true\n")
+                subprocess.run(['/usr/share/orionos/services/performance-service', 'start'])
+                print(f"Performance profile set to: {args.profile}")
+            else:
+                print(f"Invalid profile. Choose from: {', '.join(profiles)}")
+        else:
+            subprocess.run(['/usr/share/orionos/services/performance-service', 'status'])
+
+    def snapshot(self, args):
+        """Handle Btrfs snapshots"""
+        if args.list:
+            snapshots_dir = Path('/.snapshots')
+            if snapshots_dir.exists():
+                print("Available snapshots:")
+                for snapshot in sorted(snapshots_dir.iterdir()):
+                    print(f"  - {snapshot.name}")
+            else:
+                print("No snapshots directory found")
+        elif args.create:
+            name = args.create
+            try:
+                subprocess.run(['btrfs', 'subvolume', 'snapshot', '/', f'/.snapshots/{name}'], check=True)
+                print(f"Snapshot created: {name}")
+            except subprocess.CalledProcessError as e:
+                print(f"Failed to create snapshot: {e}")
+        elif args.delete:
+            name = args.delete
+            try:
+                subprocess.run(['btrfs', 'subvolume', 'delete', f'/.snapshots/{name}'], check=True)
+                print(f"Snapshot deleted: {name}")
+            except subprocess.CalledProcessError as e:
+                print(f"Failed to delete snapshot: {e}")
+        elif args.rollback:
+            name = args.rollback
+            print(f"Rolling back to snapshot: {name}")
+            if input("This will reboot your system. Continue? [y/N] ").lower() == 'y':
+                # This is simplified - real implementation would be more robust
+                subprocess.run(['btrfs', 'subvolume', 'delete', '/'])
+                subprocess.run(['btrfs', 'subvolume', 'snapshot', f'/.snapshots/{name}', '/'])
+                subprocess.run(['systemctl', 'reboot'])
+
+    def ai(self, args):
+        """Handle AI commands"""
+        if args.status:
+            ai_dir = Path('/var/lib/orionos/ai')
+            if ai_dir.exists():
+                models = list((ai_dir / 'models').glob('*.gguf')) if (ai_dir / 'models').exists() else []
+                print(f"AI Status:")
+                print(f"  Models installed: {len(models)}")
+                for model in models:
+                    size = model.stat().st_size // (1024**3)
+                    print(f"    - {model.name} ({size} GB)")
+            else:
+                print("AI service not initialized")
+        elif args.list_models:
+            # List available models from remote
+            print("Available models:")
+            models = [
+                "qwen2.5-7b-instruct",
+                "llama-3.1-8b-instruct",
+                "mistral-7b-instruct-v0.3",
+                "deepseek-llm-7b-chat",
+                "gemma-2-9b-it",
+                "phi-4-14b",
+                "granite-3.0-8b",
+                "glm-4-9b-chat",
+                "aya-23-8b",
+                "falcon-7b-instruct",
+            ]
+            for model in models:
+                print(f"  - {model}")
+
+    def doctor(self, args):
+        """System health check"""
+        print("OrionOS System Health Check")
+        print("=" * 40)
+
+        checks = {
+            'Kernel': os.path.exists('/boot/vmlinuz-linux-orionos'),
+            'Btrfs': os.path.exists('/.snapshots'),
+            'Services': os.path.exists('/usr/share/orionos/services'),
+            'Desktop': os.path.exists('/etc/skel/.config/hypr'),
+            'Themes': os.path.exists('/usr/share/themes/OrionOS-Dark'),
+            'Network': os.system('ping -c 1 -W 2 1.1.1.1 > /dev/null 2>&1') == 0,
+        }
+
+        all_ok = True
+        for check, result in checks.items():
+            status = "✓" if result else "✗"
+            if not result:
+                all_ok = False
+            print(f"  {status} {check}")
+
+        print()
+        if all_ok:
+            print("System is healthy!")
+        else:
+            print("Some checks failed. Run 'orionos-cli fix' to attempt repairs.")
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='OrionOS Command Line Interface',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  orionos-cli --version              Show version
+  orionos-cli system-info            Show system information
+  orionos-cli update --check         Check for updates
+  orionos-cli update --apply         Apply updates
+  orionos-cli performance --profile gaming   Set gaming profile
+  orionos-cli snapshot --list        List snapshots
+  orionos-cli snapshot --create snap1      Create snapshot
+  orionos-cli doctor                 Run health check
+  orionos-cli ai --list-models       List available AI models
+        """
+    )
+
+    parser.add_argument('--version', action='store_true', help='Show version')
+
+    subparsers = parser.add_subparsers(dest='command', help='Commands')
+
+    # System info
+    subparsers.add_parser('system-info', help='Show system information')
+
+    # Update
+    update_parser = subparsers.add_parser('update', help='System updates')
+    update_parser.add_argument('--check', action='store_true', help='Check for updates')
+    update_parser.add_argument('--apply', action='store_true', help='Apply updates')
+    update_parser.add_argument('--rollback', action='store_true', help='Rollback update')
+
+    # Performance
+    perf_parser = subparsers.add_parser('performance', help='Performance settings')
+    perf_parser.add_argument('--profile', choices=['performance', 'balanced', 'powersave', 'gaming'],
+                            help='Set performance profile')
+
+    # Snapshot
+    snap_parser = subparsers.add_parser('snapshot', help='Btrfs snapshots')
+    snap_parser.add_argument('--list', action='store_true', help='List snapshots')
+    snap_parser.add_argument('--create', metavar='NAME', help='Create snapshot')
+    snap_parser.add_argument('--delete', metavar='NAME', help='Delete snapshot')
+    snap_parser.add_argument('--rollback', metavar='NAME', help='Rollback to snapshot')
+
+    # AI
+    ai_parser = subparsers.add_parser('ai', help='AI management')
+    ai_parser.add_argument('--status', action='store_true', help='AI status')
+    ai_parser.add_argument('--list-models', action='store_true', help='List available models')
+
+    # Doctor
+    subparsers.add_parser('doctor', help='System health check')
+
+    args = parser.parse_args()
+
+    cli = OrionOSCLI()
+
+    if args.version:
+        cli.version()
+    elif args.command == 'system-info':
+        cli.system_info()
+    elif args.command == 'update':
+        cli.update(args)
+    elif args.command == 'performance':
+        cli.performance(args)
+    elif args.command == 'snapshot':
+        cli.snapshot(args)
+    elif args.command == 'ai':
+        cli.ai(args)
+    elif args.command == 'doctor':
+        cli.doctor(args)
+    else:
+        parser.print_help()
+
+if __name__ == '__main__':
+    main()
+EOF
+    chmod +x "${pkgdir}/usr/bin/orionos-cli"
+
+    # Create bash completion
+    cat > "${pkgdir}/etc/bash_completion.d/orionos-cli" << 'EOF'
+_orionos_cli_completion() {
+    local cur prev opts
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    opts="--version system-info update performance snapshot ai doctor"
+
+    case "${prev}" in
+        orionos-cli)
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        update)
+            local update_opts="--check --apply --rollback"
+            COMPREPLY=( $(compgen -W "${update_opts}" -- "${cur}") )
+            return 0
+            ;;
+        performance)
+            local perf_opts="--profile performance balanced powersave gaming"
+            COMPREPLY=( $(compgen -W "${perf_opts}" -- "${cur}") )
+            return 0
+            ;;
+        snapshot)
+            local snap_opts="--list --create --delete --rollback"
+            COMPREPLY=( $(compgen -W "${snap_opts}" -- "${cur}") )
+            return 0
+            ;;
+    esac
+}
+
+complete -F _orionos_cli_completion orionos-cli
+EOF
+
+    log_info "OrionOS Utils installed"
+}

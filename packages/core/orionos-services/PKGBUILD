@@ -1,0 +1,1036 @@
+# Maintainer: OrionOS Team <team@orionos.org>
+pkgname=orionos-services
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="OrionOS System Services - Performance, security, and management services"
+arch=('any')
+url="https://orionos.org"
+license=('GPL-3.0')
+depends=(
+    'systemd'
+    'dbus'
+    'polkit'
+    'python'
+    'python-psutil'
+    'python-dbus'
+    'python-gobject'
+    'python-systemd'
+    'iwd'
+    'networkmanager'
+)
+source=()
+sha256sums=()
+
+package() {
+    # Service installation directory
+    install -d "${pkgdir}/usr/lib/systemd/system"
+    install -d "${pkgdir}/usr/lib/systemd/user"
+    install -d "${pkgdir}/usr/share/dbus-1/system-services"
+    install -d "${pkgdir}/usr/share/polkit-1/actions"
+    install -d "${pkgdir}/usr/share/orionos/services"
+    install -d "${pkgdir}/usr/bin"
+    install -d "${pkgdir}/etc/orionos/services"
+
+    # ============================================
+    # OrionOS Performance Service
+    # ============================================
+    cat > "${pkgdir}/usr/lib/systemd/system/orionos-performance.service" << 'EOF'
+[Unit]
+Description=OrionOS Performance Optimization Service
+After=multi-user.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/share/orionos/services/performance-service start
+ExecStop=/usr/share/orionos/services/performance-service stop
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    cat > "${pkgdir}/usr/share/orionos/services/performance-service" << 'EOF'
+#!/usr/bin/env python3
+"""
+OrionOS Performance Service
+Automatically optimizes system performance based on workload
+"""
+
+import os
+import sys
+import psutil
+import time
+import subprocess
+from pathlib import Path
+
+class PerformanceService:
+    def __init__(self):
+        self.config_path = Path("/etc/orionos/services/performance.conf")
+        self.state_path = Path("/run/orionos/performance.state")
+        self.load_threshold_high = 70.0
+        self.load_threshold_low = 30.0
+
+    def read_config(self):
+        """Read performance configuration"""
+        config = {
+            'auto_performance': True,
+            'game_mode': False,
+            'power_profile': 'balanced',
+        }
+        if self.config_path.exists():
+            with open(self.config_path) as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#'):
+                        key, value = line.split('=', 1)
+                        config[key.strip()] = value.strip()
+        return config
+
+    def set_cpu_governor(self, governor):
+        """Set CPU frequency governor"""
+        cpu_paths = Path("/sys/devices/system/cpu").glob("cpu*/cpufreq/scaling_governor")
+        for path in cpu_paths:
+            try:
+                with open(path, 'w') as f:
+                    f.write(governor)
+            except PermissionError:
+                pass
+
+    def set_io_scheduler(self, scheduler):
+        """Set I/O scheduler for all block devices"""
+        for device in Path("/sys/block").glob("*"):
+            scheduler_path = device / "queue/scheduler"
+            if scheduler_path.exists():
+                try:
+                    with open(scheduler_path, 'w') as f:
+                        f.write(scheduler)
+                except PermissionError:
+                    pass
+
+    def set_vm_settings(self, profile):
+        """Set VM settings based on profile"""
+        settings = {
+            'performance': {
+                'swappiness': 10,
+                'vfs_cache_pressure': 50,
+                'dirty_ratio': 15,
+            },
+            'balanced': {
+                'swappiness': 30,
+                'vfs_cache_pressure': 100,
+                'dirty_ratio': 20,
+            },
+            'powersave': {
+                'swappiness': 60,
+                'vfs_cache_pressure': 150,
+                'dirty_ratio': 10,
+            }
+        }
+        if profile in settings:
+            for key, value in settings[profile].items():
+                path = f"/proc/sys/vm/{key}"
+                try:
+                    with open(path, 'w') as f:
+                        f.write(str(value))
+                except PermissionError:
+                    pass
+
+    def detect_gaming_mode(self):
+        """Detect if gaming mode should be active"""
+        gaming_processes = [
+            'steam', 'steamwebhelper', 'gamescope', 'mangohud',
+            'wine', 'wine64', 'wineserver', 'proton',
+            'osu!', 'factorio', 'minecraft', 'javaw',
+            'Overwatch', 'League of', 'Valorant',
+        ]
+        for proc in psutil.process_iter(['name', 'cmdline']):
+            try:
+                name = proc.info['name'] or ''
+                cmdline = ' '.join(proc.info['cmdline'] or [])
+                for game in gaming_processes:
+                    if game.lower() in name.lower() or game.lower() in cmdline.lower():
+                        return True
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        return False
+
+    def optimize_for_gaming(self):
+        """Apply gaming-specific optimizations"""
+        # CPU governor to performance
+        self.set_cpu_governor('performance')
+
+        # I/O scheduler to mq-deadline for better latency
+        self.set_io_scheduler('mq-deadline')
+
+        # Disable NMI watchdog
+        try:
+            with open('/proc/sys/kernel/nmi_watchdog', 'w') as f:
+                f.write('0')
+        except PermissionError:
+            pass
+
+        # Disable transparent hugepage defragmentation
+        try:
+            with open('/sys/kernel/mm/transparent_hugepage/defrag', 'w') as f:
+                f.write('never')
+        except PermissionError:
+            pass
+
+        # Set process priorities for common games
+        for proc in psutil.process_iter(['pid', 'name']):
+            try:
+                name = proc.info['name'] or ''
+                if any(g in name.lower() for g in ['steam', 'gamescope', 'wine', 'proton']):
+                    os.nice(-5)
+                    # Set CPU affinity to performance cores if available
+                    p = psutil.Process(proc.info['pid'])
+                    cpu_count = psutil.cpu_count()
+                    if cpu_count > 4:
+                        p.cpu_affinity(list(range(cpu_count // 2, cpu_count)))
+            except (psutil.NoSuchProcess, psutil.AccessDenied, PermissionError):
+                continue
+
+    def apply_profile(self, profile):
+        """Apply performance profile"""
+        print(f"[OrionOS] Applying performance profile: {profile}")
+
+        if profile == 'performance':
+            self.set_cpu_governor('performance')
+            self.set_io_scheduler('kyber')
+            self.set_vm_settings('performance')
+        elif profile == 'powersave':
+            self.set_cpu_governor('powersave')
+            self.set_io_scheduler('bfq')
+            self.set_vm_settings('powersave')
+        elif profile == 'gaming':
+            self.optimize_for_gaming()
+        else:  # balanced
+            self.set_cpu_governor('schedutil')
+            self.set_io_scheduler('mq-deadline')
+            self.set_vm_settings('balanced')
+
+        # Save state
+        self.state_path.write_text(profile)
+
+    def run(self):
+        """Main service loop"""
+        config = self.read_config()
+
+        if not config.get('auto_performance', 'True') == 'True':
+            print("[OrionOS] Auto-performance disabled")
+            return
+
+        # Apply initial profile
+        self.apply_profile('balanced')
+
+        # Monitor loop
+        while True:
+            try:
+                config = self.read_config()
+
+                if config.get('game_mode') == 'True' or self.detect_gaming_mode():
+                    self.apply_profile('gaming')
+                elif config.get('power_profile') == 'performance':
+                    self.apply_profile('performance')
+                elif config.get('power_profile') == 'powersave':
+                    self.apply_profile('powersave')
+                else:
+                    # Auto-detect based on load
+                    load = psutil.cpu_percent(interval=1)
+                    if load > self.load_threshold_high:
+                        self.apply_profile('performance')
+                    elif load < self.load_threshold_low:
+                        current = self.state_path.read_text().strip() if self.state_path.exists() else ''
+                        if current == 'performance':
+                            self.apply_profile('balanced')
+
+                time.sleep(10)
+            except KeyboardInterrupt:
+                break
+            except Exception as e:
+                print(f"[OrionOS] Error: {e}")
+                time.sleep(30)
+
+def main():
+    service = PerformanceService()
+
+    if len(sys.argv) < 2:
+        print("Usage: performance-service {start|stop|status}")
+        sys.exit(1)
+
+    cmd = sys.argv[1]
+    if cmd == 'start':
+        print("[OrionOS] Starting performance service...")
+        service.run()
+    elif cmd == 'stop':
+        print("[OrionOS] Stopping performance service...")
+        service.apply_profile('balanced')
+    elif cmd == 'status':
+        state = service.state_path.read_text().strip() if service.state_path.exists() else 'unknown'
+        print(f"[OrionOS] Current profile: {state}")
+        print(f"[OrionOS] CPU: {psutil.cpu_percent()}%")
+        print(f"[OrionOS] RAM: {psutil.virtual_memory().percent}%")
+    else:
+        print(f"Unknown command: {cmd}")
+
+if __name__ == '__main__':
+    main()
+EOF
+    chmod +x "${pkgdir}/usr/share/orionos/services/performance-service"
+
+    # ============================================
+    # OrionOS Update Service
+    # ============================================
+    cat > "${pkgdir}/usr/lib/systemd/system/orionos-update.service" << 'EOF'
+[Unit]
+Description=OrionOS Atomic Update Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/share/orionos/services/update-service check
+EOF
+
+    cat > "${pkgdir}/usr/lib/systemd/system/orionos-update.timer" << 'EOF'
+[Unit]
+Description=OrionOS Update Check Timer
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target
+EOF
+
+    cat > "${pkgdir}/usr/share/orionos/services/update-service" << 'EOF'
+#!/usr/bin/env python3
+"""
+OrionOS Atomic Update Service
+Implements A/B update system inspired by ChromeOS
+"""
+
+import os
+import sys
+import json
+import hashlib
+import subprocess
+import shutil
+from pathlib import Path
+from datetime import datetime
+
+class UpdateService:
+    def __init__(self):
+        self.root = Path("/")
+        self.boot = Path("/boot")
+        self.snapshots = Path("/.snapshots")
+        self.update_dir = Path("/var/cache/orionos/updates")
+        self.state_file = Path("/var/lib/orionos/update-state.json")
+        self.current_slot = self._get_current_slot()
+
+    def _get_current_slot(self):
+        """Get current A/B boot slot"""
+        try:
+            result = subprocess.run(
+                ['grub-editenv', '/boot/grub/grubenv', 'list'],
+                capture_output=True, text=True
+            )
+            for line in result.stdout.split('\n'):
+                if line.startswith('orionos_slot='):
+                    return line.split('=')[1].strip()
+        except Exception:
+            pass
+        return 'A'
+
+    def _get_other_slot(self):
+        return 'B' if self.current_slot == 'A' else 'A'
+
+    def _read_state(self):
+        if self.state_file.exists():
+            return json.loads(self.state_file.read_text())
+        return {
+            'current_slot': self.current_slot,
+            'update_available': False,
+            'update_version': None,
+            'last_check': None,
+            'history': []
+        }
+
+    def _write_state(self, state):
+        self.state_file.parent.mkdir(parents=True, exist_ok=True)
+        self.state_file.write_text(json.dumps(state, indent=2))
+
+    def check_updates(self):
+        """Check for available updates"""
+        print("[OrionOS] Checking for updates...")
+
+        try:
+            # Update package databases
+            subprocess.run(['pacman', '-Sy'], check=True, capture_output=True)
+
+            # Check for upgradable packages
+            result = subprocess.run(
+                ['pacman', '-Qu', '--dbpath', '/var/lib/pacman'],
+                capture_output=True, text=True
+            )
+
+            updates = result.stdout.strip().split('\n') if result.stdout.strip() else []
+            update_count = len(updates)
+
+            state = self._read_state()
+            state['last_check'] = datetime.now().isoformat()
+
+            if update_count > 0:
+                state['update_available'] = True
+                print(f"[OrionOS] {update_count} updates available")
+
+                # Create update notification
+                subprocess.run([
+                    'notify-send',
+                    'OrionOS Updates Available',
+                    f'{update_count} packages can be updated\nRun "orionos-update" to install',
+                    '-i', 'system-software-update',
+                    '-a', 'OrionOS Update Service'
+                ], capture_output=True)
+            else:
+                state['update_available'] = False
+                print("[OrionOS] System is up to date")
+
+            self._write_state(state)
+
+        except subprocess.CalledProcessError as e:
+            print(f"[OrionOS] Update check failed: {e}")
+
+    def create_snapshot(self, name=None):
+        """Create Btrfs snapshot before update"""
+        if not name:
+            name = f"pre-update-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+
+        snapshot_path = self.snapshots / name
+
+        print(f"[OrionOS] Creating snapshot: {name}")
+        try:
+            subprocess.run([
+                'btrfs', 'subvolume', 'snapshot', '/',
+                str(snapshot_path)
+            ], check=True)
+            print(f"[OrionOS] Snapshot created: {snapshot_path}")
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"[OrionOS] Snapshot creation failed: {e}")
+            return False
+
+    def download_updates(self):
+        """Download updates to cache"""
+        print("[OrionOS] Downloading updates...")
+        self.update_dir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            subprocess.run([
+                'pacman', '-Suw', '--noconfirm',
+                '--cachedir', str(self.update_dir)
+            ], check=True)
+            print("[OrionOS] Updates downloaded")
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"[OrionOS] Download failed: {e}")
+            return False
+
+    def verify_updates(self):
+        """Verify package integrity"""
+        print("[OrionOS] Verifying update integrity...")
+
+        for pkg_file in self.update_dir.glob('*.pkg.tar.zst'):
+            # Check package signature
+            result = subprocess.run(
+                ['pacman-key', '--verify', str(pkg_file)],
+                capture_output=True
+            )
+            if result.returncode != 0:
+                print(f"[OrionOS] Signature verification failed for {pkg_file.name}")
+                return False
+
+        print("[OrionOS] All packages verified")
+        return True
+
+    def apply_updates(self):
+        """Apply updates atomically"""
+        state = self._read_state()
+
+        if not state['update_available']:
+            print("[OrionOS] No updates to apply")
+            return
+
+        # Step 1: Create snapshot
+        snapshot_name = f"pre-update-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        if not self.create_snapshot(snapshot_name):
+            print("[OrionOS] Aborting update: snapshot failed")
+            return
+
+        # Step 2: Download updates
+        if not self.download_updates():
+            print("[OrionOS] Aborting update: download failed")
+            return
+
+        # Step 3: Verify packages
+        if not self.verify_updates():
+            print("[OrionOS] Aborting update: verification failed")
+            return
+
+        # Step 4: Create recovery entry in bootloader
+        other_slot = self._get_other_slot()
+        try:
+            subprocess.run([
+                'grub-editenv', '/boot/grub/grubenv',
+                'set', f'orionos_recovery_slot={self.current_slot}'
+            ], check=True)
+            subprocess.run([
+                'grub-editenv', '/boot/grub/grubenv',
+                'set', f'orionos_recovery_snapshot={snapshot_name}'
+            ], check=True)
+        except subprocess.CalledProcessError:
+            print("[OrionOS] Warning: Could not update bootloader recovery info")
+
+        # Step 5: Apply updates
+        print("[OrionOS] Applying updates...")
+        try:
+            subprocess.run([
+                'pacman', '-Su', '--noconfirm',
+                '--cachedir', str(self.update_dir)
+            ], check=True)
+
+            # Update bootloader slot
+            subprocess.run([
+                'grub-editenv', '/boot/grub/grubenv',
+                'set', f'orionos_slot={other_slot}'
+            ], check=True)
+
+            state['current_slot'] = other_slot
+            state['update_available'] = False
+            state['last_update'] = datetime.now().isoformat()
+            state['history'].append({
+                'date': datetime.now().isoformat(),
+                'snapshot': snapshot_name,
+                'from_slot': self.current_slot,
+                'to_slot': other_slot
+            })
+
+            self._write_state(state)
+
+            print("[OrionOS] Updates applied successfully!")
+            print("[OrionOS] Reboot to complete the update")
+
+            subprocess.run([
+                'notify-send',
+                'OrionOS Update Complete',
+                'Updates installed successfully. Reboot to apply.',
+                '-i', 'emblem-default',
+                '-a', 'OrionOS Update Service'
+            ], capture_output=True)
+
+        except subprocess.CalledProcessError as e:
+            print(f"[OrionOS] Update failed: {e}")
+            print("[OrionOS] System will be restored from snapshot on next boot")
+
+    def rollback(self):
+        """Rollback to previous snapshot"""
+        print("[OrionOS] Initiating rollback...")
+
+        # Get recovery info from bootloader
+        result = subprocess.run(
+            ['grub-editenv', '/boot/grub/grubenv', 'list'],
+            capture_output=True, text=True
+        )
+
+        recovery_slot = None
+        recovery_snapshot = None
+        for line in result.stdout.split('\n'):
+            if line.startswith('orionos_recovery_slot='):
+                recovery_slot = line.split('=')[1].strip()
+            elif line.startswith('orionos_recovery_snapshot='):
+                recovery_snapshot = line.split('=')[1].strip()
+
+        if recovery_snapshot and (self.snapshots / recovery_snapshot).exists():
+            print(f"[OrionOS] Rolling back to snapshot: {recovery_snapshot}")
+
+            # Restore from snapshot
+            try:
+                subprocess.run([
+                    'btrfs', 'subvolume', 'delete', '/'
+                ], check=False)
+                subprocess.run([
+                    'btrfs', 'subvolume', 'snapshot',
+                    str(self.snapshots / recovery_snapshot), '/'
+                ], check=True)
+
+                # Restore boot slot
+                if recovery_slot:
+                    subprocess.run([
+                        'grub-editenv', '/boot/grub/grubenv',
+                        'set', f'orionos_slot={recovery_slot}'
+                    ], check=True)
+
+                print("[OrionOS] Rollback complete. Rebooting...")
+                subprocess.run(['systemctl', 'reboot'])
+
+            except subprocess.CalledProcessError as e:
+                print(f"[OrionOS] Rollback failed: {e}")
+        else:
+            print("[OrionOS] No recovery snapshot found")
+
+def main():
+    service = UpdateService()
+
+    if len(sys.argv) < 2:
+        print("Usage: update-service {check|download|apply|rollback|status}")
+        sys.exit(1)
+
+    cmd = sys.argv[1]
+    if cmd == 'check':
+        service.check_updates()
+    elif cmd == 'download':
+        service.download_updates()
+    elif cmd == 'apply':
+        service.apply_updates()
+    elif cmd == 'rollback':
+        service.rollback()
+    elif cmd == 'status':
+        state = service._read_state()
+        print(json.dumps(state, indent=2))
+    else:
+        print(f"Unknown command: {cmd}")
+
+if __name__ == '__main__':
+    main()
+EOF
+    chmod +x "${pkgdir}/usr/share/orionos/services/update-service"
+
+    # Create update convenience script
+    ln -s /usr/share/orionos/services/update-service "${pkgdir}/usr/bin/orionos-update"
+
+    # ============================================
+    # OrionOS Gaming Mode Service
+    # ============================================
+    cat > "${pkgdir}/usr/lib/systemd/user/orionos-gaming.service" << 'EOF'
+[Unit]
+Description=OrionOS Gaming Mode Service
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/share/orionos/services/gaming-service
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+EOF
+
+    cat > "${pkgdir}/usr/share/orionos/services/gaming-service" << 'EOF'
+#!/usr/bin/env python3
+"""
+OrionOS Gaming Mode Service
+Automatically optimizes system when games are detected
+"""
+
+import os
+import sys
+import psutil
+import time
+import dbus
+import dbus.service
+from dbus.mainloop.glib import DBusGMainLoop
+from gi.repository import GLib
+
+GAMING_PROCESSES = [
+    'steam', 'steamwebhelper', 'gamescope', 'mangohud',
+    'wine', 'wine64', 'wineserver', 'proton', 'bottles',
+    'lutris', 'heroic', 'itch', 'osu!', 'factorio',
+    'minecraft', 'javaw', 'prismlauncher', 'multimc',
+    'overwatch', 'league of legends', 'valorant',
+    'rocketleague', 'cs2', 'dota2', 'tf2',
+    'eldenring', 'sekiro', 'darksouls',
+    'skyrim', 'fallout', 'starfield',
+    'cyberpunk', 'witcher', 'reddead',
+    'fortnite', 'apex', 'pubg',
+    'genshin', 'honkai', 'zenless',
+]
+
+class GamingService(dbus.service.Object):
+    def __init__(self):
+        bus_name = dbus.service.BusName('org.orionos.Gaming', bus=dbus.SessionBus())
+        dbus.service.Object.__init__(self, bus_name, '/org/orionos/Gaming')
+        self.gaming_active = False
+        self.original_governor = None
+
+    @dbus.service.method('org.orionos.Gaming', out_signature='b')
+    def IsGamingActive(self):
+        return self.gaming_active
+
+    @dbus.service.method('org.orionos.Gaming', out_signature='s')
+    def GetActiveProfile(self):
+        return 'gaming' if self.gaming_active else 'normal'
+
+    @dbus.service.signal('org.orionos.Gaming', signature='bs')
+    def GamingStateChanged(self, active, profile):
+        pass
+
+    def detect_gaming(self):
+        """Detect if any gaming processes are running"""
+        for proc in psutil.process_iter(['name', 'cmdline']):
+            try:
+                name = (proc.info['name'] or '').lower()
+                cmdline = ' '.join(proc.info['cmdline'] or []).lower()
+                for game in GAMING_PROCESSES:
+                    if game.lower() in name or game.lower() in cmdline:
+                        return True
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        return False
+
+    def enable_gaming_mode(self):
+        """Enable gaming optimizations"""
+        print("[OrionOS] Enabling gaming mode...")
+
+        # Save current CPU governor
+        try:
+            gov_path = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor'
+            self.original_governor = open(gov_path).read().strip()
+        except Exception:
+            self.original_governor = 'schedutil'
+
+        # Set performance governor
+        for path in psutil.glob('/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor'):
+            try:
+                with open(path, 'w') as f:
+                    f.write('performance')
+            except PermissionError:
+                pass
+
+        # Enable gamemode if installed
+        try:
+            import subprocess
+            subprocess.run(['gamemoded', '-r'], capture_output=True)
+        except Exception:
+            pass
+
+        # Disable compositor effects temporarily
+        try:
+            subprocess.run(['hyprctl', 'keyword', 'decoration:blur:enabled', 'false'], capture_output=True)
+            subprocess.run(['hyprctl', 'keyword', 'decoration:shadow:enabled', 'false'], capture_output=True)
+        except Exception:
+            pass
+
+        self.gaming_active = True
+        self.GamingStateChanged(True, 'gaming')
+
+        # Notify
+        try:
+            subprocess.run([
+                'notify-send', 'Gaming Mode', 'Performance optimizations enabled',
+                '-i', 'input-gaming', '-a', 'OrionOS Gaming Service'
+            ], capture_output=True)
+        except Exception:
+            pass
+
+    def disable_gaming_mode(self):
+        """Disable gaming optimizations"""
+        print("[OrionOS] Disabling gaming mode...")
+
+        # Restore CPU governor
+        if self.original_governor:
+            for path in psutil.glob('/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor'):
+                try:
+                    with open(path, 'w') as f:
+                        f.write(self.original_governor)
+                except PermissionError:
+                    pass
+
+        # Disable gamemode
+        try:
+            import subprocess
+            subprocess.run(['gamemoded', '-s'], capture_output=True)
+        except Exception:
+            pass
+
+        # Re-enable compositor effects
+        try:
+            subprocess.run(['hyprctl', 'keyword', 'decoration:blur:enabled', 'true'], capture_output=True)
+            subprocess.run(['hyprctl', 'keyword', 'decoration:shadow:enabled', 'true'], capture_output=True)
+        except Exception:
+            pass
+
+        self.gaming_active = False
+        self.GamingStateChanged(False, 'normal')
+
+    def run(self):
+        """Main monitoring loop"""
+        print("[OrionOS] Gaming service started")
+
+        while True:
+            try:
+                is_gaming = self.detect_gaming()
+
+                if is_gaming and not self.gaming_active:
+                    self.enable_gaming_mode()
+                elif not is_gaming and self.gaming_active:
+                    self.disable_gaming_mode()
+
+                time.sleep(5)
+
+            except KeyboardInterrupt:
+                break
+            except Exception as e:
+                print(f"[OrionOS] Error: {e}")
+                time.sleep(10)
+
+def main():
+    DBusGMainLoop(set_as_default=True)
+    service = GamingService()
+    service.run()
+
+if __name__ == '__main__':
+    main()
+EOF
+    chmod +x "${pkgdir}/usr/share/orionos/services/gaming-service"
+
+    # ============================================
+    # OrionOS Battery Service
+    # ============================================
+    cat > "${pkgdir}/usr/lib/systemd/system/orionos-battery.service" << 'EOF'
+[Unit]
+Description=OrionOS Battery Optimization Service
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/share/orionos/services/battery-service
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    cat > "${pkgdir}/usr/share/orionos/services/battery-service" << 'EOF'
+#!/usr/bin/env python3
+"""
+OrionOS Battery Optimization Service
+Manages power profiles and battery-aware optimizations
+"""
+
+import os
+import sys
+import time
+import psutil
+
+class BatteryService:
+    def __init__(self):
+        self.has_battery = self._detect_battery()
+        self.current_profile = 'balanced'
+
+    def _detect_battery(self):
+        """Check if system has a battery"""
+        return os.path.exists('/sys/class/power_supply/BAT0')
+
+    def get_battery_info(self):
+        """Get battery status information"""
+        if not self.has_battery:
+            return None
+
+        try:
+            bat_path = '/sys/class/power_supply/BAT0'
+            with open(f'{bat_path}/capacity') as f:
+                capacity = int(f.read().strip())
+            with open(f'{bat_path}/status') as f:
+                status = f.read().strip()
+
+            return {
+                'capacity': capacity,
+                'status': status,
+                'charging': status == 'Charging',
+                'discharging': status == 'Discharging',
+            }
+        except Exception as e:
+            print(f"[OrionOS] Battery read error: {e}")
+            return None
+
+    def set_power_profile(self, profile):
+        """Set system power profile"""
+        print(f"[OrionOS] Setting power profile: {profile}")
+
+        if profile == 'powersave':
+            # CPU governor
+            for path in psutil.glob('/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor'):
+                try:
+                    with open(path, 'w') as f:
+                        f.write('powersave')
+                except PermissionError:
+                    pass
+
+            # Reduce screen brightness
+            try:
+                with open('/sys/class/backlight/intel_backlight/brightness', 'r') as f:
+                    max_brightness = int(open('/sys/class/backlight/intel_backlight/max_brightness').read())
+                    target = int(max_brightness * 0.6)
+                    with open('/sys/class/backlight/intel_backlight/brightness', 'w') as f:
+                        f.write(str(target))
+            except Exception:
+                pass
+
+            # Enable runtime power management
+            for device in os.listdir('/sys/bus/pci/devices'):
+                try:
+                    with open(f'/sys/bus/pci/devices/{device}/power/control', 'w') as f:
+                        f.write('auto')
+                except PermissionError:
+                    pass
+
+        elif profile == 'balanced':
+            for path in psutil.glob('/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor'):
+                try:
+                    with open(path, 'w') as f:
+                        f.write('schedutil')
+                except PermissionError:
+                    pass
+
+        elif profile == 'performance':
+            for path in psutil.glob('/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor'):
+                try:
+                    with open(path, 'w') as f:
+                        f.write('performance')
+                except PermissionError:
+                    pass
+
+        self.current_profile = profile
+
+    def run(self):
+        """Main monitoring loop"""
+        if not self.has_battery:
+            print("[OrionOS] No battery detected, running in desktop mode")
+            self.set_power_profile('performance')
+            return
+
+        print("[OrionOS] Battery service started")
+
+        while True:
+            try:
+                battery = self.get_battery_info()
+                if not battery:
+                    time.sleep(60)
+                    continue
+
+                if battery['charging']:
+                    # On AC power - use performance
+                    if self.current_profile != 'performance':
+                        self.set_power_profile('performance')
+                elif battery['capacity'] < 20:
+                    # Low battery - aggressive power saving
+                    if self.current_profile != 'powersave':
+                        self.set_power_profile('powersave')
+                elif battery['capacity'] < 50:
+                    # Medium battery - balanced
+                    if self.current_profile != 'balanced':
+                        self.set_power_profile('balanced')
+                else:
+                    # Good battery - can use performance
+                    if self.current_profile != 'performance':
+                        self.set_power_profile('performance')
+
+                time.sleep(30)
+
+            except KeyboardInterrupt:
+                break
+            except Exception as e:
+                print(f"[OrionOS] Error: {e}")
+                time.sleep(60)
+
+def main():
+    service = BatteryService()
+    service.run()
+
+if __name__ == '__main__':
+    main()
+EOF
+    chmod +x "${pkgdir}/usr/share/orionos/services/battery-service"
+
+    # ============================================
+    # OrionOS ZRAM Configuration
+    # ============================================
+    cat > "${pkgdir}/usr/lib/systemd/system/orionos-zram.service" << 'EOF'
+[Unit]
+Description=OrionOS ZRAM Configuration
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/share/orionos/services/zram-config start
+ExecStop=/usr/share/orionos/services/zram-config stop
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    cat > "${pkgdir}/usr/share/orionos/services/zram-config" << 'EOF'
+#!/bin/bash
+# OrionOS ZRAM Configuration
+# Provides compressed RAM swap for better memory management
+
+ZRAM_SIZE="$(free -g | awk '/^Mem:/{print int($2 * 0.5)}')G"
+
+start() {
+    echo "[OrionOS] Configuring ZRAM..."
+
+    # Load zram module
+    modprobe zram num_devices=1
+
+    # Configure compression algorithm
+    echo zstd > /sys/block/zram0/comp_algorithm
+
+    # Set disk size
+    echo "${ZRAM_SIZE}" > /sys/block/zram0/disksize
+
+    # Enable and start swap
+    mkswap /dev/zram0
+    swapon /dev/zram0 -p 100
+
+    echo "[OrionOS] ZRAM configured: ${ZRAM_SIZE}"
+}
+
+stop() {
+    echo "[OrionOS] Stopping ZRAM..."
+    swapoff /dev/zram0
+    echo 1 > /sys/block/zram0/reset
+    rmmod zram
+}
+
+case "$1" in
+    start) start ;;
+    stop) stop ;;
+    *) echo "Usage: $0 {start|stop}"; exit 1 ;;
+esac
+EOF
+    chmod +x "${pkgdir}/usr/share/orionos/services/zram-config"
+
+    # Enable services by default
+    install -d "${pkgdir}/usr/lib/systemd/system-preset"
+    cat > "${pkgdir}/usr/lib/systemd/system-preset/99-orionos.preset" << 'EOF'
+# OrionOS default service presets
+enable orionos-performance.service
+enable orionos-update.timer
+enable orionos-battery.service
+enable orionos-zram.service
+EOF
+
+    # Install user service preset
+    install -d "${pkgdir}/usr/lib/systemd/user-preset"
+    cat > "${pkgdir}/usr/lib/systemd/user-preset/99-orionos.preset" << 'EOF'
+# OrionOS default user service presets
+enable orionos-gaming.service
+EOF
+
+    log_info "OrionOS Services installed"
+}

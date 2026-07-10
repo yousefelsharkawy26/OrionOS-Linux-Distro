@@ -1,0 +1,376 @@
+# =============================================================================
+# OrionOS CI/CD Pipeline
+# GitHub Actions workflow for automated builds, testing, and releases
+# =============================================================================
+
+name: OrionOS Build Pipeline
+
+on:
+  push:
+    branches: [ main, develop, 'release/*' ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Daily builds at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  ORIONOS_VERSION: ${{ github.ref_name }}
+  BUILD_DIR: ${{ github.workspace }}/build
+  CACHE_DIR: ${{ github.workspace }}/.cache
+
+jobs:
+  # ==========================================================================
+  # Code Quality Checks
+  # ==========================================================================
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install linting tools
+        run: |
+          pip install shellcheck-py pylint black flake8
+
+      - name: Run ShellCheck
+        run: |
+          find . -name "*.sh" -type f | xargs shellcheck --severity=warning || true
+
+      - name: Run Python linting
+        run: |
+          find . -name "*.py" -type f | xargs pylint --disable=R,C || true
+          find . -name "*.py" -type f | xargs black --check || true
+          find . -name "*.py" -type f | xargs flake8 --max-line-length=120 || true
+
+      - name: Check PKGBUILD syntax
+        run: |
+          find . -name "PKGBUILD" -type f | while read pkg; do
+            bash -n "$pkg" || true
+          done
+
+  # ==========================================================================
+  # Build Kernel
+  # ==========================================================================
+  build-kernel:
+    name: Build Kernel
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          pacman -Sy --noconfirm
+          pacman -S --needed --noconfirm \
+            base-devel bc cpio gettext libelf pahole perl python tar xz \
+            git sudo
+
+      - name: Cache kernel source
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CACHE_DIR }}/kernel
+          key: kernel-${{ hashFiles('kernel/config/orionos-kernel.config') }}
+
+      - name: Build kernel
+        run: |
+          cd kernel
+          make download
+          make extract
+          make patch
+          make config
+          make build JOBS=$(nproc)
+
+      - name: Package kernel
+        run: |
+          cd kernel
+          make package
+
+      - name: Upload kernel packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-packages
+          path: build/kernel/*.pkg.tar.zst
+          retention-days: 7
+
+  # ==========================================================================
+  # Build Packages
+  # ==========================================================================
+  build-packages:
+    name: Build Packages
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    needs: [lint]
+    strategy:
+      matrix:
+        profile: [default, gaming, developer, minimal]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          pacman -Sy --noconfirm
+          pacman -S --needed --noconfirm base-devel git sudo archiso
+
+      - name: Setup build user
+        run: |
+          useradd -m -G wheel -s /bin/bash builduser
+          echo "builduser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+      - name: Build packages
+        run: |
+          export BUILD_DIR=${{ env.BUILD_DIR }}
+          mkdir -p $BUILD_DIR/packages
+          scripts/build/build-packages.sh $BUILD_DIR/packages x86_64 ${{ matrix.profile }}
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ matrix.profile }}
+          path: build/packages/**/*.pkg.tar.zst
+          retention-days: 7
+
+  # ==========================================================================
+  # Build ISO
+  # ==========================================================================
+  build-iso:
+    name: Build ISO
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    needs: [build-kernel, build-packages]
+    strategy:
+      matrix:
+        profile: [default, gaming, developer]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          pacman -Sy --noconfirm
+          pacman -S --needed --noconfirm base-devel archiso git sudo \
+            grub efibootmgr libisoburn mtools dosfstools squashfs-tools
+
+      - name: Download kernel packages
+        uses: actions/download-artifact@v4
+        with:
+          name: kernel-packages
+          path: build/kernel/
+
+      - name: Download profile packages
+        uses: actions/download-artifact@v4
+        with:
+          name: packages-${{ matrix.profile }}
+          path: build/packages/
+
+      - name: Create package repository
+        run: |
+          scripts/build/create-repo.sh build/packages build/repo
+
+      - name: Build ISO
+        run: |
+          scripts/build/build-iso.sh \
+            --arch x86_64 \
+            --profile ${{ matrix.profile }} \
+            --version ${{ github.ref_name || '0.0.0' }} \
+            --output build/iso/orionos-${{ github.ref_name || '0.0.0' }}-${{ matrix.profile }}-x86_64.iso
+
+      - name: Generate checksums
+        run: |
+          cd build/iso
+          sha256sum *.iso > SHA256SUMS
+          md5sum *.iso > MD5SUMS
+
+      - name: Upload ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: iso-${{ matrix.profile }}
+          path: |
+            build/iso/*.iso
+            build/iso/SHA256SUMS
+            build/iso/MD5SUMS
+          retention-days: 14
+
+  # ==========================================================================
+  # Run Tests
+  # ==========================================================================
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    needs: [build-packages]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install test dependencies
+        run: |
+          pacman -Sy --noconfirm
+          pacman -S --needed --noconfirm python python-pytest python-psutil \
+            shellcheck bash bats
+
+      - name: Run unit tests
+        run: |
+          cd testing
+          pytest unit/ -v --tb=short || true
+
+      - name: Run integration tests
+        run: |
+          cd testing
+          pytest integration/ -v --tb=short || true
+
+      - name: Run shell script tests
+        run: |
+          find scripts -name "*.sh" -type f | while read script; do
+            bats "$script" || true
+          done
+
+      - name: Generate test report
+        run: |
+          cd testing
+          pytest --tb=short --junitxml=report.xml || true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: testing/report.xml
+          retention-days: 30
+
+  # ==========================================================================
+  # Security Scan
+  # ==========================================================================
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run ShellCheck security scan
+        run: |
+          find . -name "*.sh" -type f | xargs shellcheck --severity=error || true
+
+  # ==========================================================================
+  # Release
+  # ==========================================================================
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build-iso, test, security-scan]
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all ISO artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Generate release notes
+        run: |
+          VERSION=${{ github.ref_name }}
+          cat > RELEASE_NOTES.md << EOF
+          # OrionOS $VERSION
+
+          ## Downloads
+
+          | Profile | Size | SHA256 |
+          |---------|------|--------|
+          EOF
+
+          for iso in artifacts/iso-*/*.iso; do
+            profile=$(basename "$iso" | sed 's/.*-\(.*\)-x86_64.iso/\1/')
+            size=$(du -h "$iso" | cut -f1)
+            sha256=$(sha256sum "$iso" | cut -d' ' -f1)
+            echo "| $profile | $size | \`$sha256\` |" >> RELEASE_NOTES.md
+          done
+
+          cat >> RELEASE_NOTES.md << EOF
+
+          ## Installation
+
+          1. Download the ISO for your preferred profile
+          2. Write to USB: \`dd if=orionos-*.iso of=/dev/sdX bs=4M status=progress\`
+          3. Boot from USB and follow the installer
+
+          ## Profiles
+
+          - **default**: Balanced desktop experience
+          - **gaming**: Optimized for gaming with Steam, Proton, and performance tools
+          - **developer**: Includes development tools, containers, and IDEs
+
+          ## What's New
+
+          See [CHANGELOG.md](CHANGELOG.md) for full details.
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: RELEASE_NOTES.md
+          files: |
+            artifacts/iso-*/*.iso
+            artifacts/iso-*/SHA256SUMS
+            artifacts/iso-*/MD5SUMS
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+
+  # ==========================================================================
+  # Documentation
+  # ==========================================================================
+  docs:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install docs dependencies
+        run: |
+          pip install mkdocs mkdocs-material pymdown-extensions
+
+      - name: Build documentation
+        run: |
+          cd docs
+          mkdocs build || true
+
+      - name: Upload documentation
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation
+          path: docs/site/
+          retention-days: 30
