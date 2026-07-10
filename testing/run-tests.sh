@@ -32,17 +32,17 @@ log_info() {
 
 log_pass() {
     echo -e "${GREEN}[PASS]${NC} $*"
-    ((TESTS_PASSED++))
+    TESTS_PASSED=$((TESTS_PASSED + 1))
 }
 
 log_fail() {
     echo -e "${RED}[FAIL]${NC} $*"
-    ((TESTS_FAILED++))
+    TESTS_FAILED=$((TESTS_FAILED + 1))
 }
 
 log_skip() {
     echo -e "${YELLOW}[SKIP]${NC} $*"
-    ((TESTS_SKIPPED++))
+    TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
 # =============================================================================
@@ -70,7 +70,7 @@ run_unit_tests() {
 
 test_pkgbuild_syntax() {
     local test_name="PKGBUILD Syntax"
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
 
     local failed=0
     while IFS= read -r -d '' pkgbuild; do
@@ -87,7 +87,7 @@ test_pkgbuild_syntax() {
 
 test_kernel_config() {
     local test_name="Kernel Configuration"
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
 
     local config_file="${PROJECT_ROOT}/kernel/config/orionos-kernel.config"
 
@@ -126,7 +126,7 @@ test_kernel_config() {
 
 test_service_configs() {
     local test_name="Service Configuration"
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
 
     local failed=0
 
@@ -150,7 +150,7 @@ test_service_configs() {
 
 test_script_syntax() {
     local test_name="Script Syntax"
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
 
     local failed=0
     while IFS= read -r -d '' script; do
@@ -178,7 +178,7 @@ test_script_syntax() {
 
 test_config_files() {
     local test_name="Configuration Files"
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
 
     local failed=0
 
@@ -222,7 +222,7 @@ run_integration_tests() {
 
 test_build_system() {
     local test_name="Build System"
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
 
     # Check if Makefile exists and is valid
     if [[ ! -f "${PROJECT_ROOT}/Makefile" ]]; then
@@ -248,7 +248,7 @@ test_build_system() {
 
 test_package_deps() {
     local test_name="Package Dependencies"
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
 
     local failed=0
 
@@ -276,7 +276,7 @@ test_package_deps() {
 
 test_iso_config() {
     local test_name="ISO Configuration"
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
 
     local failed=0
 
@@ -311,7 +311,7 @@ run_security_tests() {
 
 test_security_policies() {
     local test_name="Security Policies"
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
 
     local failed=0
 
@@ -344,7 +344,7 @@ test_security_policies() {
 
 test_encryption_config() {
     local test_name="Encryption Configuration"
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
 
     # Check for LUKS/encryption references in configs
     local failed=0
@@ -361,7 +361,7 @@ test_encryption_config() {
 
 test_firewall_rules() {
     local test_name="Firewall Rules"
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
 
     local failed=0
 
@@ -389,7 +389,7 @@ run_performance_tests() {
 
 test_kernel_optimizations() {
     local test_name="Kernel Optimizations"
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
 
     local failed=0
     local kernel_config="${PROJECT_ROOT}/kernel/config/orionos-kernel.config"
@@ -424,7 +424,7 @@ test_kernel_optimizations() {
 
 test_service_efficiency() {
     local test_name="Service Efficiency"
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
 
     # Check that services use appropriate resource limits
     local failed=0
@@ -439,8 +439,8 @@ test_service_efficiency() {
     fi
 
     if [[ $failed -ne 0 ]]; then
-        ((TESTS_FAILED--))  # Adjust counter since we already incremented
-        ((TESTS_FAILED+=failed))
+        TESTS_FAILED=$((TESTS_FAILED - 1))  # Adjust counter since we already incremented
+        TESTS_FAILED=$((TESTS_FAILED + failed))
     fi
 }
 

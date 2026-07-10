@@ -1,0 +1,30 @@
+# OrionOS Default Configuration
+# These values are used when no explicit configuration is provided
+
+# System
+ORIONOS_HOSTNAME="orionos"
+ORIONOS_TIMEZONE="UTC"
+ORIONOS_LOCALE="en_US.UTF-8"
+
+# Desktop
+ORIONOS_DESKTOP="hyprland"
+ORIONOS_THEME="OrionOS-Dark"
+ORIONOS_ICON_THEME="Papirus-Dark"
+
+# Performance
+ORIONOS_PERF_PROFILE="default"
+ORIONOS_PERF_AUTO_DETECT="false"
+
+# Update
+ORIONOS_UPDATE_AUTO_CHECK="true"
+ORIONOS_UPDATE_AUTO_APPLY="false"
+ORIONOS_UPDATE_INTERVAL="6"
+
+# Snapshots
+ORIONOS_SNAPSHOT_AUTO="true"
+ORIONOS_SNAPSHOT_KEEP="5"
+
+# Security
+ORIONOS_FIREWALL="true"
+ORIONOS_APPARMOR="true"
+ORIONOS_USB_GUARD="true"

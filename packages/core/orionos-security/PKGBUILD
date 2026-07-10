@@ -1,253 +1,130 @@
-# Maintainer: OrionOS Team <team@orionos.org>
+# Maintainer: Yousef Elsharkawy <yousefelsharkawy26@gmail.com>
 pkgname=orionos-security
 pkgver=0.1.0
 pkgrel=1
-pkgdesc="OrionOS Security Stack - SELinux, firewall, encryption, and policies"
+pkgdesc="OrionOS security stack - AppArmor, firewall, encryption, and hardening"
 arch=('any')
-url="https://orionos.org"
-license=('GPL-3.0')
+url="https://github.com/yousefelsharkawy26/OrionOS-Linux-Distro"
+license=('GPL3')
 depends=(
     'apparmor'
     'apparmor-profiles'
     'apparmor-utils'
-    'firewalld'
-    'iptables'
-    'nftables'
-    'selinux-policy-targeted'
-    'selinux-python'
-    'libselinux'
     'audit'
+    'firewalld'
     'usbguard'
-    'fail2ban'
-    'openssl'
-    'gnupg'
+    'usbguard-dbus'
+    'iptables-nft'
+    'nftables'
+    'ipset'
+    'opensc'
     'tpm2-tools'
     'tpm2-tss'
     'clevis'
-    'luks'
-    'cryptsetup'
-    'ima-evm-utils'
-    'keyutils'
-    'kernel-module-signing'
-    'p11-kit'
-    'softhsm'
+    'openssl'
+    'gnupg'
+    'libpwquality'
+    'pam'
+    'pambase'
+    'sudo'
+    'fail2ban'
+    'rkhunter'
+    'chkrootkit'
+    'libseccomp'
+    'seccomp'
+    'bind'
+    'dnscrypt-proxy'
 )
-source=()
-sha256sums=()
+optdepends=(
+    'selinux-refpolicy-arch: SELinux policies'
+    'selinux-alpm-hook: SELinux pacman hook'
+    'aide: File integrity checker'
+    'clamav: Antivirus'
+)
+conflicts=('orionos-security-git')
+provides=('orionos-security')
+backup=(
+    'etc/apparmor.d/local/orionos-local'
+    'etc/firewalld/zones/orionos.xml'
+    'etc/usbguard/rules.conf'
+    'etc/security/faillock.conf'
+    'etc/audit/rules.d/orionos.rules'
+    'etc/dnscrypt-proxy/dnscrypt-proxy.toml'
+    'etc/pam.d/system-auth'
+    'etc/sudoers.d/orionos'
+    'etc/sysctl.d/98-security.conf'
+    'etc/fail2ban/jail.d/orionos.conf'
+)
 
 package() {
-    # Security configuration directories
-    install -d "${pkgdir}/etc/orionos/security"
-    install -d "${pkgdir}/etc/apparmor.d/orionos"
-    install -d "${pkgdir}/etc/firewalld/zones"
-    install -d "${pkgdir}/etc/usbguard"
-    install -d "${pkgdir}/etc/audit/rules.d"
-    install -d "${pkgdir}/etc/selinux/targeted/contexts/files"
-    install -d "${pkgdir}/usr/share/orionos/security"
-    install -d "${pkgdir}/usr/lib/systemd/system"
-    install -d "${pkgdir}/etc/polkit-1/rules.d"
+    # Base directories
+    install -d "$pkgdir/etc/apparmor.d/local"
+    install -d "$pkgdir/etc/apparmor.d/abstractions"
+    install -d "$pkgdir/etc/firewalld/zones"
+    install -d "$pkgdir/etc/firewalld/services"
+    install -d "$pkgdir/etc/usbguard"
+    install -d "$pkgdir/etc/security"
+    install -d "$pkgdir/etc/audit/rules.d"
+    install -d "$pkgdir/etc/dnscrypt-proxy"
+    install -d "$pkgdir/etc/pam.d"
+    install -d "$pkgdir/etc/sudoers.d"
+    install -d "$pkgdir/etc/fail2ban/jail.d"
+    install -d "$pkgdir/etc/rkhunter"
+    install -d "$pkgdir/usr/lib/systemd/system"
+    install -d "$pkgdir/usr/lib/sysctl.d"
+    install -d "$pkgdir/usr/bin"
+    install -d "$pkgdir/usr/share/orionos/security"
+    install -d "$pkgdir/usr/share/doc/orionos-security"
+    install -d "$pkgdir/etc/polkit-1/rules.d"
 
-    # ============================================
-    # AppArmor Profiles for OrionOS Applications
-    # ============================================
+    # ==================================================================
+    # AppArmor local profile extensions
+    # ==================================================================
+    cat > "$pkgdir/etc/apparmor.d/local/orionos-local" << 'EOF'
+# OrionOS AppArmor local profile extensions
+# These extend the base profiles with OrionOS-specific rules
 
-    # Desktop applications profile
-    cat > "${pkgdir}/etc/apparmor.d/orionos/orionos-desktop" << 'EOF'
-# OrionOS Desktop AppArmor Profile
-#include <tunables/global>
+# Allow OrionOS CLI tool to manage system
+/usr/bin/orionos-cli rUx,
+/usr/share/orionos/** r,
 
-/usr/share/orionos/** {
-    #include <abstractions/base>
-    #include <abstractions/fonts>
-    #include <abstractions/X>
-    #include <abstractions/wayland>
-    #include <abstractions/dbus>
-    #include <abstractions/audio>
+# Allow performance daemon
+/usr/bin/orionos-perfd rUx,
 
-    capability dac_override,
-    capability dac_read_search,
-    capability setuid,
-    capability setgid,
+# Allow update daemon to manage packages
+/usr/bin/orionos-updated rUx,
+/etc/pacman.conf r,
+/var/cache/pacman/** rwk,
 
-    /usr/share/orionos/** r,
-    /etc/orionos/** r,
-    /var/lib/orionos/** rwk,
-    /var/cache/orionos/** rw,
-    /var/log/orionos/** rw,
-
-    # Allow reading system information
-    /proc/** r,
-    /sys/** r,
-    /dev/dri/** r,
-    /dev/input/** r,
-
-    # Network
-    network inet stream,
-    network inet6 stream,
-    network netlink raw,
-
-    # DBus
-    dbus send bus=session path=/org/freedesktop/**,
-    dbus receive bus=session path=/org/freedesktop/**,
-    dbus send bus=system path=/org/freedesktop/**,
-    dbus receive bus=system path=/org/freedesktop/**,
-}
+# Allow Btrfs operations for snapshot management
+/sbin/btrfs rUx,
+/bin/btrfs rUx,
 EOF
 
-    # AI service profile
-    cat > "${pkgdir}/etc/apparmor.d/orionos/orionos-ai" << 'EOF'
-# OrionOS AI Service AppArmor Profile
-#include <tunables/global>
-
-/usr/share/orionos/ai/** {
-    #include <abstractions/base>
-    #include <abstractions/python>
-    #include <abstractions/dbus>
-    #include <abstractions/nameservice>
-
-    capability dac_override,
-    capability dac_read_search,
-
-    # AI model storage
-    /var/lib/orionos/ai/** rwk,
-    /var/cache/orionos/ai/** rw,
-
-    # GPU access
-    /dev/nvidia* rw,
-    /dev/dri/** rw,
-    /dev/kfd rw,
-    /sys/class/kfd/** r,
-    /sys/class/drm/** r,
-
-    # Read-only system access
-    /etc/orionos/** r,
-    /usr/share/orionos/** r,
-    /proc/cpuinfo r,
-    /proc/meminfo r,
-    /sys/devices/system/cpu/** r,
-
-    # Network for model downloads
-    network inet stream,
-    network inet6 stream,
-    network netlink raw,
-
-    # Localhost only for API
-    network inet stream -> 127.0.0.1,
-    network inet6 stream -> ::1,
-}
-EOF
-
-    # Gaming profile
-    cat > "${pkgdir}/etc/apparmor.d/orionos/orionos-gaming" << 'EOF'
-# OrionOS Gaming AppArmor Profile
-#include <tunables/global>
-
-/usr/share/orionos/gaming/** {
-    #include <abstractions/base>
-    #include <abstractions/X>
-    #include <abstractions/audio>
-    #include <abstractions/dbus>
-
-    capability dac_override,
-    capability dac_read_search,
-    capability sys_admin,
-    capability sys_ptrace,
-
-    # Game installations
-    /home/*/.local/share/Steam/** rwk,
-    /home/*/.steam/** rwk,
-    /home/*/Games/** rwk,
-
-    # Wine/Proton
-    /home/*/.wine/** rwk,
-    /home/*/.local/share/lutris/** rwk,
-    /home/*/.local/share/bottles/** rwk,
-
-    # GPU access
-    /dev/nvidia* rw,
-    /dev/dri/** rw,
-    /dev/kfd rw,
-
-    # System info for optimization
-    /proc/** r,
-    /sys/class/drm/** r,
-    /sys/devices/system/cpu/** r,
-    /sys/class/power_supply/** r,
-
-    # Network
-    network inet stream,
-    network inet6 stream,
-    network netlink raw,
-}
-EOF
-
-    # ============================================
-    # Firewall Configuration (firewalld)
-    # ============================================
-    cat > "${pkgdir}/etc/firewalld/zones/orionos.xml" << 'EOF'
+    # ==================================================================
+    # Firewalld zone configuration
+    # ==================================================================
+    cat > "$pkgdir/etc/firewalld/zones/orionos.xml" << 'EOF'
 <?xml version="1.0" encoding="utf-8"?>
-<zone target="default">
+<zone>
   <short>OrionOS</short>
-  <description>OrionOS default firewall zone. Secure by default with selective openings.</description>
-
-  <!-- Essential services -->
+  <description>OrionOS default firewall zone. Balanced security for desktop use.</description>
+  <service name="ssh"/>
   <service name="dhcpv6-client"/>
   <service name="mdns"/>
-  <service name="ssh"/>
-
-  <!-- Desktop integration -->
   <service name="samba-client"/>
-  <service name="ipp-client"/>
-
-  <!-- Block all incoming by default -->
   <rule family="ipv4">
-    <source address="0.0.0.0/0"/>
-    <reject type="icmp-port-unreachable"/>
+    <protocol value="icmp"/>
+    <accept/>
   </rule>
-
   <rule family="ipv6">
-    <source address="::/0"/>
-    <reject type="icmp6-port-unreachable"/>
+    <protocol value="ipv6-icmp"/>
+    <accept/>
   </rule>
-</zone>
-EOF
-
-    # OrionOS public zone (for public networks)
-    cat > "${pkgdir}/etc/firewalld/zones/orionos-public.xml" << 'EOF'
-<?xml version="1.0" encoding="utf-8"?>
-<zone target="DROP">
-  <short>OrionOS Public</short>
-  <description>Maximum security for public networks. Only essential outgoing connections.</description>
-
-  <service name="dhcpv6-client"/>
-  <service name="mdns"/>
-
-  <!-- Block all incoming, allow established -->
   <rule family="ipv4">
-    <source address="0.0.0.0/0"/>
-    <drop/>
+    <source address="172.16.0.0/12"/>
+    <accept/>
   </rule>
-</zone>
-EOF
-
-    # OrionOS home zone (for trusted networks)
-    cat > "${pkgdir}/etc/firewalld/zones/orionos-home.xml" << 'EOF'
-<?xml version="1.0" encoding="utf-8"?>
-<zone target="default">
-  <short>OrionOS Home</short>
-  <description>Relaxed security for trusted home networks.</description>
-
-  <service name="dhcpv6-client"/>
-  <service name="mdns"/>
-  <service name="ssh"/>
-  <service name="samba"/>
-  <service name="samba-client"/>
-  <service name="ipp"/>
-  <service name="ipp-client"/>
-  <service name="nfs"/>
-  <service name="dns"/>
-
-  <!-- Allow local network access -->
   <rule family="ipv4">
     <source address="192.168.0.0/16"/>
     <accept/>
@@ -256,378 +133,68 @@ EOF
     <source address="10.0.0.0/8"/>
     <accept/>
   </rule>
-  <rule family="ipv4">
-    <source address="172.16.0.0/12"/>
+  <rule family="ipv6">
+    <source address="fe80::/10"/>
     <accept/>
   </rule>
 </zone>
 EOF
 
-    # ============================================
-    # USBGuard Configuration
-    # ============================================
-    cat > "${pkgdir}/etc/usbguard/usbguard-daemon.conf" << 'EOF'
-# OrionOS USBGuard Configuration
-# Block all USB devices by default, allow only authorized devices
+    # ==================================================================
+    # Firewalld services
+    # ==================================================================
+    cat > "$pkgdir/etc/firewalld/services/orionos-sync.xml" << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<service>
+  <short>OrionOS Sync</short>
+  <description>OrionOS cross-device synchronization protocol</description>
+  <port protocol="tcp" port="42000-42010"/>
+  <port protocol="udp" port="42000-42010"/>
+</service>
+EOF
 
+    # ==================================================================
+    # USBGuard configuration
+    # ==================================================================
+    cat > "$pkgdir/etc/usbguard/rules.conf" << 'EOF'
+# OrionOS USBGuard default policy
+# Default: block all new USB devices, allow configured ones
+
+# Allow USB hubs (required for most systems)
+allow id 1d6b:* serial "*" name "* USB *" hash "*" parent-hash "*" via-port "*" with-interface { 09:00:* }
+
+# Allow HID devices (keyboards, mice) - only if already present at boot
+allow with-interface equals { 03:01:02 } # Boot keyboard
+allow with-interface equals { 03:01:01 } # Boot mouse
+
+# Block everything else by default
+block
+EOF
+
+    cat > "$pkgdir/etc/usbguard/usbguard-daemon.conf" << 'EOF'
+# OrionOS USBGuard daemon configuration
 RuleFile=/etc/usbguard/rules.conf
 ImplicitPolicyTarget=block
-PresentDevicePolicy=allow
+PresentDevicePolicy=apply-policy
 PresentControllerPolicy=keep
 InsertedDevicePolicy=apply-policy
 RestoreControllerDeviceState=false
-DeviceManagerBackend=uevent
+DeviceBackend=uevent
 IPCAllowedUsers=root
 IPCAllowedGroups=wheel
-IPCAccessControlFiles=/etc/usbguard/IPCAccessControl.d/
-DeviceRulesWithPort=false
-AuditFilePath=/var/log/usbguard/audit.log
 EOF
 
-    # Default USB rules - allow HID and storage from known vendors
-    cat > "${pkgdir}/etc/usbguard/rules.conf" << 'EOF'
-# OrionOS USB Rules
-# Allow USB hubs
-allow with-interface equals { 09:00:* }
-
-# Allow human interface devices (keyboards, mice)
-allow with-interface equals { 03:00:00 }
-allow with-interface equals { 03:01:01 }
-allow with-interface equals { 03:01:02 }
-
-# Allow mass storage (with authorization)
-allow with-interface equals { 08:06:50 } if !one-of { serial "*" }
-
-# Block everything else by default
-EOF
-
-    # ============================================
-    # Audit Rules
-    # ============================================
-    cat > "${pkgdir}/etc/audit/rules.d/orionos.rules" << 'EOF'
-# OrionOS Audit Rules
-# Monitor security-relevant events
-
-# Delete all existing rules
--D
-
-# Set buffer size
--b 8192
-
-# Failure mode: printk
--f 1
-
-# Monitor user/group modifications
--w /etc/group -p wa -k identity
--w /etc/passwd -p wa -k identity
--w /etc/gshadow -p wa -k identity
--w /etc/shadow -p wa -k identity
--w /etc/security/opasswd -p wa -k identity
-
-# Monitor sudoers
--w /etc/sudoers -p wa -k sudoers
--w /etc/sudoers.d/ -p wa -k sudoers
-
-
-# Monitor SELinux/AppArmor
--w /etc/selinux/ -p wa -k selinux
--w /etc/apparmor/ -p wa -k apparmor
--w /etc/apparmor.d/ -p wa -k apparmor
-
-# Monitor SSH configuration
--w /etc/ssh/sshd_config -p wa -k sshd
-
-# Monitor systemd
--w /etc/systemd/ -p wa -k systemd
-
-# Monitor kernel module loading
--w /sbin/insmod -p x -k modules
--w /sbin/rmmod -p x -k modules
--w /sbin/modprobe -p x -k modules
--a always,exit -F arch=b64 -S init_module -S delete_module -k modules
-
-# Monitor time changes
--a always,exit -F arch=b64 -S adjtimex -S settimeofday -k time-change
--a always,exit -F arch=b64 -S clock_settime -k time-change
--w /etc/localtime -p wa -k time-change
-
-# Monitor login/logout
--w /var/log/wtmp -p wa -k logins
--w /var/log/btmp -p wa -k logins
--w /var/log/lastlog -p wa -k logins
-
-# Monitor process execution
--a always,exit -F arch=b64 -S execve -C uid!=euid -F euid=0 -k setuid
--a always,exit -F arch=b64 -S execve -C gid!=egid -F egid=0 -k setgid
-
-# Monitor file deletions
--a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid>=1000 -F auid!=4294967295 -k delete
-
-# Monitor mount operations
--a always,exit -F arch=b64 -S mount -S umount2 -k mount
-
-# Make the audit configuration immutable
--e 2
-EOF
-
-    # ============================================
-    # Polkit Rules for OrionOS
-    # ============================================
-    cat > "${pkgdir}/etc/polkit-1/rules.d/99-orionos.rules" << 'EOF'
-// OrionOS Polkit Rules
-// Secure privilege escalation for OrionOS services
-
-polkit.addRule(function(action, subject) {
-    // Allow wheel group to manage OrionOS services without password
-    if (subject.isInGroup("wheel")) {
-        var orionosActions = [
-            "org.orionos.performance.configure",
-            "org.orionos.update.apply",
-            "org.orionos.update.rollback",
-            "org.orionos.gaming.configure",
-            "org.orionos.ai.manage",
-            "org.orionos.snapshot.create",
-            "org.orionos.snapshot.restore",
-        ];
-
-        if (orionosActions.indexOf(action.id) !== -1) {
-            return polkit.Result.YES;
-        }
-    }
-
-    // Allow active user to manage their own desktop settings
-    if (subject.active && subject.local) {
-        if (action.id.indexOf("org.orionos.desktop.") === 0) {
-            return polkit.Result.YES;
-        }
-    }
-
-    return polkit.Result.NOT_HANDLED;
-});
-
-// Restrict destructive operations to administrators
-polkit.addRule(function(action, subject) {
-    var adminActions = [
-        "org.orionos.update.rollback",
-        "org.orionos.snapshot.delete",
-        "org.orionos.security.policy.modify",
-    ];
-
-    if (adminActions.indexOf(action.id) !== -1) {
-        if (!subject.isInGroup("wheel")) {
-            return polkit.Result.NO;
-        }
-        // Even wheel users need to authenticate for destructive ops
-        return polkit.Result.AUTH_ADMIN_KEEP;
-    }
-
-    return polkit.Result.NOT_HANDLED;
-});
-EOF
-
-    # ============================================
-    # TPM + LUKS Integration (Clevis)
-    # ============================================
-    cat > "${pkgdir}/usr/share/orionos/security/tpm-luks-setup.sh" << 'EOF'
-#!/bin/bash
-# OrionOS TPM + LUKS Setup
-# Automates binding LUKS encryption to TPM for secure boot
-
-set -euo pipefail
-
-LUKS_DEVICE="${1:-}"
-TPM_SLOT="${2:-1}"
-
-if [[ -z "$LUKS_DEVICE" ]]; then
-    echo "Usage: $0 <luks-device> [tpm-slot]"
-    echo "Example: $0 /dev/nvme0n1p2"
-    exit 1
-fi
-
-echo "[OrionOS] Setting up TPM + LUKS binding..."
-
-# Check TPM availability
-if ! tpm2_getcap properties-fixed >/dev/null 2>&1; then
-    echo "[OrionOS] Error: TPM2 device not available"
-    exit 1
-fi
-
-# Get TPM info
-echo "[OrionOS] TPM Info:"
-tpm2_getcap properties-fixed | grep -E "(TPM2_PT_MANUFACTURER|TPM2_PT_FIRMWARE_VERSION)"
-
-# Bind LUKS to TPM using Clevis
-echo "[OrionOS] Binding LUKS device to TPM..."
-clevis luks bind -f -d "$LUKS_DEVICE" tpm2 '{"pcr_ids":"0,1,2,3,4,5,6,7"}'
-
-# Verify binding
-echo "[OrionOS] Verifying binding..."
-if clevis luks list -d "$LUKS_DEVICE" | grep -q "tpm2"; then
-    echo "[OrionOS] TPM + LUKS binding successful!"
-    echo "[OrionOS] The system will automatically unlock on boot with valid TPM measurements."
-else
-    echo "[OrionOS] Warning: Could not verify TPM binding"
-fi
-EOF
-    chmod +x "${pkgdir}/usr/share/orionos/security/tpm-luks-setup.sh"
-
-    # ============================================
-    # Secure Boot Setup Script
-    # ============================================
-    cat > "${pkgdir}/usr/share/orionos/security/secure-boot-setup.sh" << 'EOF'
-#!/bin/bash
-# OrionOS Secure Boot Setup
-# Creates and enrolls custom Secure Boot keys
-
-set -euo pipefail
-
-KEY_DIR="/etc/orionos/secure-boot"
-mkdir -p "$KEY_DIR"
-
-echo "[OrionOS] Setting up Secure Boot..."
-
-# Check if Secure Boot is available
-if [[ ! -d /sys/firmware/efi ]]; then
-    echo "[OrionOS] Error: System not booted in UEFI mode"
-    exit 1
-fi
-
-# Generate Platform Key (PK)
-if [[ ! -f "$KEY_DIR/PK.key" ]]; then
-    echo "[OrionOS] Generating Platform Key..."
-    openssl req -new -x509 -newkey rsa:2048 \
-        -subj "/CN=OrionOS Platform Key/" \
-        -keyout "$KEY_DIR/PK.key" \
-        -out "$KEY_DIR/PK.crt" \
-        -days 3650 \
-        -nodes
-    chmod 600 "$KEY_DIR/PK.key"
-fi
-
-# Generate Key Exchange Key (KEK)
-if [[ ! -f "$KEY_DIR/KEK.key" ]]; then
-    echo "[OrionOS] Generating Key Exchange Key..."
-    openssl req -new -x509 -newkey rsa:2048 \
-        -subj "/CN=OrionOS Key Exchange Key/" \
-        -keyout "$KEY_DIR/KEK.key" \
-        -out "$KEY_DIR/KEK.crt" \
-        -days 3650 \
-        -nodes
-    chmod 600 "$KEY_DIR/KEK.key"
-fi
-
-# Generate Signature Database Key (db)
-if [[ ! -f "$KEY_DIR/db.key" ]]; then
-    echo "[OrionOS] Generating Signature Database Key..."
-    openssl req -new -x509 -newkey rsa:2048 \
-        -subj "/CN=OrionOS Signature Database/" \
-        -keyout "$KEY_DIR/db.key" \
-        -out "$KEY_DIR/db.crt" \
-        -days 3650 \
-        -nodes
-    chmod 600 "$KEY_DIR/db.key"
-fi
-
-# Convert certificates to EFI signature lists
-echo "[OrionOS] Creating EFI signature lists..."
-cert-to-efi-sig-list -g "$(uuidgen)" "$KEY_DIR/PK.crt" "$KEY_DIR/PK.esl"
-cert-to-efi-sig-list -g "$(uuidgen)" "$KEY_DIR/KEK.crt" "$KEY_DIR/KEK.esl"
-cert-to-efi-sig-list -g "$(uuidgen)" "$KEY_DIR/db.crt" "$KEY_DIR/db.esl"
-
-# Sign the signature lists
-sign-efi-sig-list -k "$KEY_DIR/PK.key" -c "$KEY_DIR/PK.crt" PK "$KEY_DIR/PK.esl" "$KEY_DIR/PK.auth"
-sign-efi-sig-list -k "$KEY_DIR/PK.key" -c "$KEY_DIR/PK.crt" KEK "$KEY_DIR/KEK.esl" "$KEY_DIR/KEK.auth"
-sign-efi-sig-list -k "$KEY_DIR/KEK.key" -c "$KEY_DIR/KEK.crt" db "$KEY_DIR/db.esl" "$KEY_DIR/db.auth"
-
-echo "[OrionOS] Secure Boot keys generated in $KEY_DIR"
-echo "[OrionOS] To enroll keys, run:"
-echo "  sudo efi-updatevar -f $KEY_DIR/PK.auth PK"
-echo "  sudo efi-updatevar -f $KEY_DIR/KEK.auth KEK"
-echo "  sudo efi-updatevar -f $KEY_DIR/db.auth db"
-EOF
-    chmod +x "${pkgdir}/usr/share/orionos/security/secure-boot-setup.sh"
-
-    # ============================================
-    # Application Permission System
-    # ============================================
-    cat > "${pkgdir}/etc/orionos/security/permissions.conf" << 'EOF'
-# OrionOS Application Permission System
-# Default permissions for common applications
-
-# Browsers
-[firefox]
-network=true
-camera=ask
-microphone=ask
-location=ask
-notifications=true
-filesystem=xdg-download;xdg-documents
-home=read-only
-
-[chromium]
-network=true
-camera=ask
-microphone=ask
-location=ask
-notifications=true
-filesystem=xdg-download;xdg-documents
-
-# Communication
-[discord]
-network=true
-camera=true
-microphone=true
-notifications=true
-background=true
-
-[slack]
-network=true
-camera=ask
-microphone=ask
-notifications=true
-
-# Development
-[code]
-network=true
-filesystem=home
-developer-tools=true
-
-# Gaming
-[steam]
-network=true
-filesystem=home
-gpu=true
-gamepad=true
-background=true
-
-# Media
-[spotify]
-network=true
-audio=true
-notifications=true
-background=true
-
-# AI Applications
-[orionos-ai]
-network=true
-gpu=true
-filesystem=xdg-documents;xdg-download;xdg-pictures
-background=true
-EOF
-
-    # ============================================
-    # Fail2Ban Configuration
-    # ============================================
-    cat > "${pkgdir}/etc/fail2ban/jail.d/orionos.conf" << 'EOF'
-# OrionOS Fail2Ban Configuration
-# Protect against brute force attacks
-
+    # ==================================================================
+    # Fail2ban jail configuration
+    # ==================================================================
+    cat > "$pkgdir/etc/fail2ban/jail.d/orionos.conf" << 'EOF'
 [DEFAULT]
-bantime = 1h
 findtime = 10m
 maxretry = 5
+bantime = 1h
 backend = systemd
-banaction = iptables-multiport
+banaction = nftables-multiport
+chain = input
 
 [sshd]
 enabled = true
@@ -637,30 +204,225 @@ logpath = /var/log/auth.log
 maxretry = 3
 bantime = 24h
 
-[orionos-web]
+[pam-generic]
 enabled = true
-port = http,https
-filter = apache-auth
-logpath = /var/log/orionos/access.log
-maxretry = 10
+filter = pam-generic
+port = all
+banaction = nftables-multiport
+logpath = /var/log/auth.log
 EOF
 
-    # ============================================
-    # Security Hardening Script
-    # ============================================
-    cat > "${pkgdir}/usr/share/orionos/security/harden-system.sh" << 'EOF'
-#!/bin/bash
-# OrionOS System Hardening Script
-# Applies security hardening measures
+    # ==================================================================
+    # Audit rules for OrionOS
+    # ==================================================================
+    cat > "$pkgdir/etc/audit/rules.d/orionos.rules" << 'EOF'
+# OrionOS audit rules
+# Delete all existing rules
+-D
 
-set -euo pipefail
+# Set buffer size
+-b 8192
 
-apply_kernel_hardening() {
-    echo "[OrionOS] Applying kernel hardening..."
+# Monitor system calls
+-a always,exit -F arch=b64 -S setuid -S setgid -S setreuid -S setregid -k privilege_escalation
+-a always,exit -F arch=b64 -S execve -C uid!=euid -F euid=0 -k privilege_escalation
+-a always,exit -F arch=b64 -S init_module -S finit_module -S delete_module -k kernel_modules
 
-    # Kernel hardening sysctl settings
-    cat > /etc/sysctl.d/99-orionos-security.conf << 'SYSCTL_EOF'
-# OrionOS Kernel Security Hardening
+# Monitor authentication
+-w /etc/shadow -p wa -k identity_changes
+-w /etc/passwd -p wa -k identity_changes
+-w /etc/gshadow -p wa -k identity_changes
+-w /etc/group -p wa -k identity_changes
+-w /etc/security/ -p wa -k identity_changes
+-w /etc/pam.d/ -p wa -k authentication_changes
+
+# Monitor sudoers
+-w /etc/sudoers -p wa -k sudoers_changes
+-w /etc/sudoers.d/ -p wa -k sudoers_changes
+
+# Monitor SSH configuration
+-w /etc/ssh/sshd_config -p wa -k sshd_config
+-w /etc/ssh/sshd_config.d/ -p wa -k sshd_config
+
+# Monitor cron jobs
+-w /etc/cron.d/ -p wa -k cron_changes
+-w /etc/cron.daily/ -p wa -k cron_changes
+-w /etc/cron.hourly/ -p wa -k cron_changes
+-w /etc/cron.weekly/ -p wa -k cron_changes
+-w /etc/crontab -p wa -k cron_changes
+
+# Monitor pacman (package manager)
+-w /var/cache/pacman/ -p wa -k package_manager
+-w /etc/pacman.conf -p wa -k package_manager
+
+# Monitor boot files
+-w /boot/ -p wa -k boot_changes
+-w /etc/systemd/ -p wa -k systemd_changes
+
+# Monitor AppArmor
+-w /etc/apparmor/ -p wa -k apparmor_changes
+-w /etc/apparmor.d/ -p wa -k apparmor_changes
+
+# Make the configuration immutable (requires reboot to change)
+-e 2
+EOF
+
+    # ==================================================================
+    # DNS encryption configuration (dnscrypt-proxy)
+    # ==================================================================
+    cat > "$pkgdir/etc/dnscrypt-proxy/dnscrypt-proxy.toml" << 'EOF'
+# OrionOS DNS encryption configuration
+# Uses DNS-over-HTTPS with multiple resolvers
+
+server_names = ['cloudflare', 'cloudflare-ipv6', 'quad9-dnscrypt-ip4-filter-pri', 'quad9-dnscrypt-ip6-filter-pri']
+
+listen_addresses = ['127.0.0.1:53', '[::1]:53']
+max_clients = 250
+ipv4_servers = true
+ipv6_servers = true
+dnscrypt_servers = true
+doh_servers = true
+require_dnssec = true
+require_nolog = true
+require_nofilter = false
+cached = true
+
+[sources]
+  [sources.'public-resolvers']
+  urls = ['https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/public-resolvers.md', 'https://download.dnscrypt.info/resolvers-list/v3/public-resolvers.md']
+  cache_file = 'public-resolvers.md'
+  minisign_key = 'RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3'
+  refresh_delay = 72
+  prefix = ''
+
+  [sources.'relays']
+  urls = ['https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/relays.md', 'https://download.dnscrypt.info/resolvers-list/v3/relays.md']
+  cache_file = 'relays.md'
+  minisign_key = 'RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3'
+  refresh_delay = 72
+  prefix = ''
+
+[query_log]
+  file = '/var/log/dnscrypt-proxy/query.log'
+  format = 'ltsv'
+
+[nx_log]
+  file = '/var/log/dnscrypt-proxy/nx.log'
+  format = 'ltsv'
+
+[blocked_names]
+  blocked_names_file = '/etc/dnscrypt-proxy/blocked-names.txt'
+
+[scheduling]
+  timeout = 5000
+  keepalive = 30
+EOF
+
+    # ==================================================================
+    # Faillock configuration
+    # ==================================================================
+    cat > "$pkgdir/etc/security/faillock.conf" << 'EOF'
+# OrionOS faillock configuration
+dir = /var/run/faillock
+audit
+silent
+no_log_info
+deny = 5
+fail_interval = 900
+unlock_time = 600
+even_deny_root
+root_unlock_time = 600
+EOF
+
+    # ==================================================================
+    # Sudoers configuration for OrionOS
+    # ==================================================================
+    cat > "$pkgdir/etc/sudoers.d/orionos" << 'EOF'
+# OrionOS sudo configuration
+
+# Allow wheel group full sudo access
+%wheel ALL=(ALL:ALL) ALL
+
+# Allow passwordless sudo for specific system maintenance
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/btrfs *
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart *
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/systemctl start *
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop *
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/systemctl status *
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/pacman -Syu
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/orionos-cli *
+
+# Defaults
+Defaults env_reset
+Defaults mail_badpass
+Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Defaults timestamp_timeout=15
+Defaults logfile="/var/log/sudo.log"
+Defaults lecture=never
+EOF
+    chmod 440 "$pkgdir/etc/sudoers.d/orionos"
+
+    # ==================================================================
+    # PAM configuration - system-auth
+    # ==================================================================
+    cat > "$pkgdir/etc/pam.d/system-auth" << 'EOF'
+# OrionOS PAM system-auth configuration
+#%PAM-1.0
+
+auth       required                    pam_faillock.so      preauth silent deny=5 unlock_time=600
+auth       [success=1 default=bad]     pam_unix.so          try_first_pass nullok
+auth       [default=die]               pam_faillock.so      authfail deny=5 unlock_time=600
+auth       optional                    pam_permit.so
+auth       required                    pam_env.so
+
+account    required                    pam_unix.so
+account    required                    pam_faillock.so
+account    optional                    pam_permit.so
+
+password   required                    pam_pwquality.so     retry=3 minlen=12 dcredit=-1 ucredit=-1 ocredit=-1 lcredit=-1 difok=4
+password   [success=1 default=bad]     pam_unix.so          try_first_pass use_authtok nullok sha512 shadow rounds=500000
+password   optional                    pam_permit.so
+
+session    required                    pam_limits.so
+session    required                    pam_unix.so
+session    optional                    pam_permit.so
+EOF
+
+    # ==================================================================
+    # Security sysctl
+    # ==================================================================
+    cat > "$pkgdir/etc/sysctl.d/98-security.conf" << 'EOF'
+# OrionOS Security Hardening
+# Kernel parameters for enhanced security
+
+# Disable source routing
+net.ipv4.conf.all.accept_source_route = 0
+net.ipv4.conf.default.accept_source_route = 0
+net.ipv6.conf.all.accept_source_route = 0
+net.ipv6.conf.default.accept_source_route = 0
+
+# Disable ICMP redirects
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.default.accept_redirects = 0
+net.ipv6.conf.all.accept_redirects = 0
+net.ipv6.conf.default.accept_redirects = 0
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.conf.default.send_redirects = 0
+
+# Ignore ICMP echo requests (ping)
+net.ipv4.icmp_echo_ignore_broadcasts = 1
+net.ipv4.icmp_ignore_bogus_error_responses = 1
+
+# Enable SYN cookies
+net.ipv4.tcp_syncookies = 1
+
+# Enable reverse path filtering
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.default.rp_filter = 1
+
+# Disable IPv6 router solicitations
+net.ipv6.conf.all.router_solicitations = 0
+net.ipv6.conf.default.router_solicitations = 0
 
 # Enable ASLR
 kernel.randomize_va_space = 2
@@ -668,203 +430,133 @@ kernel.randomize_va_space = 2
 # Restrict ptrace
 kernel.yama.ptrace_scope = 2
 
-# Disable kernel pointers exposure
-kernel.kptr_restrict = 2
-
-# Restrict dmesg access
+# Restrict dmesg
 kernel.dmesg_restrict = 1
 
-# Disable BPF for unprivileged users
-kernel.unprivileged_bpf_disabled = 1
+# Restrict kernel pointers
+kernel.kptr_restrict = 2
 
-# Harden BPF JIT
+# Disable kexec
+kernel.kexec_load_disabled = 1
+
+# Harden BPF
 net.core.bpf_jit_harden = 2
 
-# Disable core dumps
-fs.suid_dumpable = 0
+# Restrict userfaultfd
+vm.unprivileged_userfaultfd = 0
 
-# Harden symlink and hardlink handling
-fs.protected_symlinks = 1
-fs.protected_hardlinks = 1
-
-# Restrict FIFO and regular file access in sticky directories
-fs.protected_fifos = 2
-fs.protected_regular = 2
-
-# Disable automatic loading of line disciplines
-dev.tty.ldisc_autoload = 0
-
-# Restrict loading TTY line disciplines to CAP_SYS_MODULE
-kernel.sysrq = 0
-
-# Disable user namespaces (unless needed for containers)
-# kernel.unprivileged_userns_clone = 0
-
-# TCP security
-net.ipv4.tcp_syncookies = 1
-net.ipv4.tcp_rfc1337 = 1
-net.ipv4.conf.all.rp_filter = 1
-net.ipv4.conf.default.rp_filter = 1
-
-# Ignore ICMP redirects
-net.ipv4.conf.all.accept_redirects = 0
-net.ipv4.conf.default.accept_redirects = 0
-net.ipv4.conf.all.secure_redirects = 0
-net.ipv6.conf.all.accept_redirects = 0
-net.ipv6.conf.default.accept_redirects = 0
-
-# Ignore source routed packets
-net.ipv4.conf.all.accept_source_route = 0
-net.ipv6.conf.all.accept_source_route = 0
-
-# Log martian packets
-net.ipv4.conf.all.log_martians = 1
-
-# Ignore ICMP echo requests (optional - disable for ping response)
-# net.ipv4.icmp_echo_ignore_all = 1
-SYSCTL_EOF
-
-    sysctl --system
-}
-
-apply_filesystem_hardening() {
-    echo "[OrionOS] Applying filesystem hardening..."
-
-    # Secure /tmp
-    if ! mount | grep -q '/tmp '; then
-        echo "[OrionOS] /tmp should be mounted with noexec,nosuid,nodev"
-    fi
-
-    # Secure /dev/shm
-    if ! mount | grep '/dev/shm' | grep -q 'noexec'; then
-        echo "[OrionOS] /dev/shm should be mounted with noexec,nosuid,nodev"
-    fi
-
-    # Set secure permissions on sensitive files
-    chmod 600 /etc/shadow
-    chmod 600 /etc/gshadow
-    chmod 644 /etc/passwd
-    chmod 644 /etc/group
-}
-
-apply_service_hardening() {
-    echo "[OrionOS] Applying service hardening..."
-
-    # Enable AppArmor
-    systemctl enable apparmor --now 2>/dev/null || true
-
-    # Enable firewall
-    systemctl enable firewalld --now 2>/dev/null || true
-
-    # Enable auditd
-    systemctl enable auditd --now 2>/dev/null || true
-
-    # Enable USBGuard
-    systemctl enable usbguard --now 2>/dev/null || true
-
-    # Enable Fail2Ban
-    systemctl enable fail2ban --now 2>/dev/null || true
-}
-
-apply_authentication_hardening() {
-    echo "[OrionOS] Applying authentication hardening..."
-
-    # Password policy
-    if ! grep -q 'pam_pwquality' /etc/pam.d/system-auth 2>/dev/null; then
-        echo "[OrionOS] Consider adding pam_pwquality for password strength"
-    fi
-
-    # Login.defs
-    sed -i 's/^PASS_MAX_DAYS.*/PASS_MAX_DAYS 90/' /etc/login.defs 2>/dev/null || true
-    sed -i 's/^PASS_MIN_DAYS.*/PASS_MIN_DAYS 1/' /etc/login.defs 2>/dev/null || true
-    sed -i 's/^PASS_WARN_AGE.*/PASS_WARN_AGE 7/' /etc/login.defs 2>/dev/null || true
-}
-
-main() {
-    echo "========================================"
-    echo "OrionOS System Hardening"
-    echo "========================================"
-
-    if [[ $EUID -ne 0 ]]; then
-        echo "[OrionOS] This script must be run as root"
-        exit 1
-    fi
-
-    read -p "Apply system hardening? This will modify system settings. [y/N] " confirm
-    if [[ $confirm != [yY] ]]; then
-        echo "[OrionOS] Hardening cancelled"
-        exit 0
-    fi
-
-    apply_kernel_hardening
-    apply_filesystem_hardening
-    apply_service_hardening
-    apply_authentication_hardening
-
-    echo ""
-    echo "[OrionOS] System hardening complete!"
-    echo "[OrionOS] Review changes and reboot when ready."
-}
-
-main "$@"
-EOF
-    chmod +x "${pkgdir}/usr/share/orionos/security/harden-system.sh"
-
-    # ============================================
-    # SELinux Targeted Policy Module for OrionOS
-    # ============================================
-    cat > "${pkgdir}/usr/share/orionos/security/orionos-selinux.te" << 'EOF'
-module orionos 1.0;
-
-require {
-    type unconfined_t;
-    type systemd_unit_file_t;
-    type etc_t;
-    type var_lib_t;
-    type var_log_t;
-    type user_home_t;
-    type tmp_t;
-    class file { read write create unlink open getattr setattr };
-    class dir { read write search add_name remove_name create rmdir };
-    class lnk_file { read create unlink };
-    class process { transition signal };
-    class service { start stop status reload };
-    class dbus { send_msg acquire_svc };
-}
-
-# OrionOS domain
-type orionos_t;
-type orionos_exec_t;
-domain_type(orionos_t)
-domain_entry_file(orionos_t, orionos_exec_t)
-
-# Allow OrionOS services to manage their data
-type orionos_var_lib_t;
-files_type(orionos_var_lib_t)
-allow orionos_t orionos_var_lib_t:dir create_dir_perms;
-allow orionos_t orionos_var_lib_t:file create_file_perms;
-
-# Allow OrionOS services to manage their logs
-type orionos_var_log_t;
-files_type(orionos_var_log_t)
-allow orionos_t orionos_var_log_t:dir create_dir_perms;
-allow orionos_t orionos_var_log_t:file create_file_perms;
-
-# Allow OrionOS services to read system configuration
-allow orionos_t etc_t:file read_file_perms;
-allow orionos_t etc_t:dir search_dir_perms;
-
-# Allow OrionOS services to manage temporary files
-allow orionos_t tmp_t:dir create_dir_perms;
-allow orionos_t tmp_t:file create_file_perms;
-
-# Allow transitions from systemd
-init_daemon_domain(orionos_t, orionos_exec_t)
-
-# Allow D-Bus communication
-allow orionos_t unconfined_t:dbus send_msg;
-allow unconfined_t orionos_t:dbus send_msg;
+# Disable autobind for IPv6
+net.ipv6.ip6frag_low_thresh = 131072
+net.ipv4.ipfrag_low_thresh = 196608
 EOF
 
-    log_info "OrionOS Security Stack installed"
+    # ==================================================================
+    # Polkit rules for OrionOS
+    # ==================================================================
+    cat > "$pkgdir/etc/polkit-1/rules.d/99-orionos.rules" << 'EOF'
+// OrionOS polkit rules
+// Allow certain actions without password for wheel group
+
+polkit.addRule(function(action, subject) {
+    // Allow wheel group to manage NetworkManager
+    if (action.id.indexOf("org.freedesktop.NetworkManager.") == 0 &&
+        subject.isInGroup("wheel")) {
+        return polkit.Result.YES;
+    }
+
+    // Allow wheel group to manage Bluetooth
+    if (action.id.indexOf("org.bluez.") == 0 &&
+        subject.isInGroup("wheel")) {
+        return polkit.Result.YES;
+    }
+
+    // Allow wheel group to manage power
+    if (action.id.indexOf("org.freedesktop.login1.") == 0 &&
+        subject.isInGroup("wheel")) {
+        return polkit.Result.YES;
+    }
+
+    // Allow wheel group to mount/unmount
+    if (action.id.indexOf("org.freedesktop.udisks2.") == 0 &&
+        subject.isInGroup("wheel")) {
+        return polkit.Result.YES;
+    }
+});
+EOF
+
+    # ==================================================================
+    # RKHunter configuration
+    # ==================================================================
+    cat > "$pkgdir/etc/rkhunter/rkhunter.conf.local" << 'EOF'
+# OrionOS RKHunter local configuration
+DISABLE_TESTS=suspscan hidden_ports deleted_files packet_cap_apps apps
+ALLOWHIDDENDIR=/etc/.java
+ALLOWHIDDENDIR=/dev/.udev
+ALLOWHIDDENDIR=/dev/.mdadm
+ALLOWHIDDENFILE=/usr/share/man/man1/..1.gz
+ALLOWHIDDENFILE=/etc/.java
+ALLOWDEVFILE=/dev/shm/sem.*
+EOF
+
+    # ==================================================================
+    # Notification sound script
+    # ==================================================================
+    cat > "$pkgdir/usr/share/orionos/security/security-alert.sh" << 'EOF'
+#!/bin/bash
+# OrionOS security alert notification
+
+MESSAGE="$1"
+SEVERITY="$2"
+
+# Play appropriate sound
+if [[ "$SEVERITY" == "critical" ]]; then
+    paplay /usr/share/sounds/freedesktop/stereo/dialog-warning.oga 2>/dev/null || true
+fi
+
+# Send notification
+dunstify -u "$SEVERITY" -a "OrionOS Security" "$MESSAGE"
+EOF
+    chmod 755 "$pkgdir/usr/share/orionos/security/security-alert.sh"
+
+    # ==================================================================
+    # Enable services via systemd presets
+    # ==================================================================
+    install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/system-preset/98-orionos-security.preset" << 'EOF'
+enable apparmor.service
+enable auditd.service
+enable firewalld.service
+enable usbguard.service
+enable usbguard-dbus.service
+enable fail2ban.service
+enable dnscrypt-proxy.service
+EOF
+
+    # ==================================================================
+    # Documentation
+    # ==================================================================
+    install -Dm644 /dev/stdin "$pkgdir/usr/share/doc/orionos-security/README" << 'EOF'
+OrionOS Security Stack
+=======================
+
+This package provides comprehensive security for OrionOS:
+
+- AppArmor: Mandatory Access Control profiles
+- firewalld: Zone-based firewall with OrionOS defaults
+- USBGuard: USB device access control
+- fail2ban: Intrusion prevention for SSH
+- auditd: System call auditing
+- dnscrypt-proxy: Encrypted DNS
+- faillock: Account lockout after failed attempts
+- PAM hardening: Password quality and authentication rules
+- sysctl hardening: Kernel security parameters
+- polkit rules: Privilege management for wheel group
+
+Services enabled by default:
+- apparmor.service
+- auditd.service
+- firewalld.service
+- usbguard.service
+- fail2ban.service
+- dnscrypt-proxy.service
+EOF
 }
