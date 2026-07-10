@@ -1,6 +1,6 @@
 # OrionOS Makefile
 
-.PHONY: all init kernel packages iso repo test docker-iso clean help
+.PHONY: all init kernel packages iso repo test docker-iso clean help check-arch check-docker validate
 
 VERSION ?= 1.0.0
 PROFILE ?= default
@@ -14,12 +14,15 @@ all: iso
 help:
 	@echo "OrionOS Build System"
 	@echo ""
-	@echo "Targets:"
-	@echo "  make init          - Initialize build environment (requires Arch Linux)"
+	@echo "ISO Build Options:"
+	@echo "  make iso           - Generate ISO (requires Arch Linux)"
+	@echo "  make docker-iso    - Generate ISO via Docker (requires Docker)"
+	@echo ""
+	@echo "Other Targets:"
+	@echo "  make validate      - Validate build profile without building"
+	@echo "  make init          - Initialize build environment (Arch Linux only)"
 	@echo "  make packages      - Build OrionOS packages"
 	@echo "  make kernel        - Build custom kernel"
-	@echo "  make iso           - Generate ISO image (native, requires Arch Linux)"
-	@echo "  make docker-iso    - Generate ISO via Docker (any Linux)"
 	@echo "  make repo          - Create package repository"
 	@echo "  make test          - Run test suite"
 	@echo "  make clean         - Clean build artifacts"
@@ -29,22 +32,57 @@ help:
 	@echo "  PROFILE=$(PROFILE)  (default|gaming|developer|minimal)"
 	@echo "  ARCH=$(ARCH)"
 
-init:
+check-arch:
+	@if [ ! -f /etc/arch-release ]; then \
+		echo ""; \
+		echo "ERROR: ISO build requires Arch Linux or an Arch-based distribution."; \
+		echo ""; \
+		echo "Options:"; \
+		echo "  1. Build on Arch Linux:"; \
+		echo "       sudo pacman -S archiso base-devel"; \
+		echo "       make iso"; \
+		echo ""; \
+		echo "  2. Use Docker (any Linux with Docker):"; \
+		echo "       make docker-iso"; \
+		echo ""; \
+		echo "  3. Validate the profile (no build):"; \
+		echo "       make validate"; \
+		echo ""; \
+		exit 1; \
+	fi
+
+check-docker:
+	@if ! command -v docker >/dev/null 2>&1; then \
+		echo "ERROR: Docker is not installed."; \
+		echo "Install: https://docs.docker.com/get-docker/"; \
+		exit 1; \
+	fi
+	@if ! docker info >/dev/null 2>&1; then \
+		echo "ERROR: Docker daemon is not running."; \
+		echo "Start with: sudo systemctl start docker"; \
+		echo "Or on Ubuntu/Debian: sudo service docker start"; \
+		exit 1; \
+	fi
+
+validate:
+	@bash scripts/build/validate-profile.sh
+
+init: check-arch
 	@bash scripts/build/init-env.sh $(ARCH)
 
-packages:
+packages: check-arch
 	@bash scripts/build/build-packages.sh
 
-kernel:
+kernel: check-arch
 	@bash scripts/build/build-kernel.sh
 
-iso:
+iso: check-arch
 	@bash scripts/build/build-iso.sh --version $(VERSION) --profile $(PROFILE) --arch $(ARCH)
 
-docker-iso:
+docker-iso: check-docker
 	@bash scripts/build/build-iso-host.sh
 
-repo:
+repo: check-arch
 	@bash scripts/build/create-repo.sh
 
 test:
