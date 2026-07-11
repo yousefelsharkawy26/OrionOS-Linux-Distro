@@ -11,6 +11,7 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}" && pwd)"
 VERSION="${VERSION:-1.0.0}"
 PROFILE="${PROFILE:-default}"
 WORK="${HOME}/orionos-build"
+CACHE="${HOME}/.cache/orionos"
 OUTPUT="${PROJECT_ROOT}/build/iso"
 ARCH_BOOTSTRAP_URL="https://geo.mirror.pkgbuild.com/iso/latest/archlinux-bootstrap-x86_64.tar.zst"
 
@@ -54,14 +55,15 @@ mkdir -p "$WORK" "$OUTPUT"
 # ─────────────────────────────────────────────
 echo ""
 echo "[3/8] Downloading Arch Linux bootstrap..."
-BOOTSTRAP_TAR="${WORK}/archlinux-bootstrap.tar.zst"
+mkdir -p "$CACHE"
+BOOTSTRAP_TAR="${CACHE}/archlinux-bootstrap.tar.zst"
 BOOTSTRAP_DIR="${WORK}/archlinux-root"
 
 if [[ ! -f "$BOOTSTRAP_TAR" ]]; then
     curl -L -o "$BOOTSTRAP_TAR" "$ARCH_BOOTSTRAP_URL"
     echo "  Downloaded: $(du -h "$BOOTSTRAP_TAR" | cut -f1)"
 else
-    echo "  Using cached download"
+    echo "  Using cached: $BOOTSTRAP_TAR ($(du -h "$BOOTSTRAP_TAR" | cut -f1))"
 fi
 
 # ─────────────────────────────────────────────
