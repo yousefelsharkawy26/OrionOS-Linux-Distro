@@ -78,7 +78,6 @@ echo ""
 echo "--- Build System ---"
 check "Dockerfile" "${PROJECT_ROOT}/Dockerfile"
 check "build-iso.sh" "${PROJECT_ROOT}/scripts/build/build-iso.sh"
-check "build-iso-docker.sh" "${PROJECT_ROOT}/scripts/build/build-iso-docker.sh"
 check "build-iso-host.sh" "${PROJECT_ROOT}/scripts/build/build-iso-host.sh"
 check "Makefile" "${PROJECT_ROOT}/Makefile"
 
