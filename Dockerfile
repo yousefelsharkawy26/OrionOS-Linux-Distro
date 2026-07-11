@@ -26,8 +26,4 @@ RUN pacman -Syu --noconfirm && \
     pacman -Scc --noconfirm && \
     rm -rf /var/cache/pacman/pkg/* /tmp/*
 
-# Enable multilib repository
-RUN printf '\n[multilib]\nInclude = /etc/pacman.d/mirrorlist\n' >> /etc/pacman.conf && \
-    pacman -Sy --noconfirm
-
 WORKDIR /build/orionos
