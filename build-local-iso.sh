@@ -10,7 +10,7 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}" && pwd)"
 
 VERSION="${VERSION:-1.0.0}"
 PROFILE="${PROFILE:-default}"
-WORK="${PROJECT_ROOT}/build/local-iso-work"
+WORK="${HOME}/orionos-build"
 OUTPUT="${PROJECT_ROOT}/build/iso"
 ARCH_BOOTSTRAP_URL="https://geo.mirror.pkgbuild.com/iso/latest/archlinux-bootstrap-x86_64.tar.zst"
 
@@ -70,7 +70,7 @@ fi
 echo ""
 echo "[4/8] Extracting Arch bootstrap..."
 mkdir -p "$BOOTSTRAP_DIR"
-tar -xf "$BOOTSTRAP_TAR" --strip-components=1 -C "$BOOTSTRAP_DIR"
+tar -xf "$BOOTSTRAP_TAR" --strip-components=1 --no-same-owner --no-same-permissions -C "$BOOTSTRAP_DIR" 2>/dev/null || true
 echo "  Extracted to: $BOOTSTRAP_DIR"
 
 # ─────────────────────────────────────────────
