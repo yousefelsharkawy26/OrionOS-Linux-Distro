@@ -13,14 +13,11 @@ mkinitcpio-archiso
 grub
 grub-btrfs
 efibootmgr
-os-prober
 dosfstools
 syslinux
 
 # Btrfs
 btrfs-progs
-snapper
-snap-pac
 
 # Network
 networkmanager
@@ -28,7 +25,6 @@ iwd
 openssh
 curl
 wget
-openbsd-netcat
 
 # Filesystem tools
 ntfs-3g
@@ -38,7 +34,6 @@ udisks2
 # Compression
 tar
 gzip
-bzip2
 xz
 zstd
 zip
@@ -62,18 +57,14 @@ pciutils
 usbutils
 lsof
 lm_sensors
-hardinfo2
 
 # Pacman tools
 pacman-contrib
-paru
 
 # Fonts
 noto-fonts
 noto-fonts-cjk
 noto-fonts-emoji
-noto-fonts-extra
-ttf-terminus-nerd
 
 # Display / GPU
 mesa
@@ -81,7 +72,6 @@ mesa-utils
 vulkan-intel
 vulkan-radeon
 libva-mesa-driver
-mesa-vdpau
 xorg-xrandr
 xorg-xbacklight
 
@@ -110,20 +100,8 @@ neovim
 dunst
 grim
 slurp
- wl-clipboard
+wl-clipboard
 polkit
 xdg-desktop-portal-hyprland
 qt6-base
 qt6-wayland
-
-# Calamares installer
-calamares
-calamares-orionos
-
-# OrionOS core packages
-orionos-config
-orionos-desktop
-orionos-security
-orionos-services
-orionos-themes
-orionos-utils
