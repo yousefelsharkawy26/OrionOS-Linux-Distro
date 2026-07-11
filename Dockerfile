@@ -1,6 +1,6 @@
 FROM archlinux:latest
 
-# Update system and install build dependencies
+# Install all build dependencies in one layer
 RUN pacman -Syu --noconfirm && \
     pacman -S --noconfirm --needed \
         base-devel \
@@ -13,29 +13,21 @@ RUN pacman -Syu --noconfirm && \
         grub \
         libisoburn \
         mtools \
-        nasm \
         openssl \
         pacman-contrib \
         parted \
-        patch \
         sed \
         squashfs-tools \
         syslinux \
         reflector \
         git \
         wget \
-        curl \
-    && pacman -Scc --noconfirm
+        curl && \
+    pacman -Scc --noconfirm && \
+    rm -rf /var/cache/pacman/pkg/* /tmp/*
 
-# Set up build user
-RUN useradd -m builder && \
-    echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/builder
-
-# Copy project
-COPY --chown=builder:builder . /build/orionos
+# Enable multilib
+RUN echo -e "\n[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf && \
+    pacman -Sy --noconfirm
 
 WORKDIR /build/orionos
-
-USER builder
-
-ENTRYPOINT ["/build/orionos/scripts/build/build-iso-docker.sh"]
