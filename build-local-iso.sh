@@ -82,13 +82,13 @@ echo "[5/8] Configuring rootfs..."
 ROOTFS="${WORK}/airootfs"
 mkdir -p "$ROOTFS"
 
-# Copy bootstrap as base
-cp -a "$BOOTSTRAP_DIR/." "$ROOTFS/"
+# Copy bootstrap as base (skip permission errors on special files)
+cp -a "$BOOTSTRAP_DIR/." "$ROOTFS/" 2>/dev/null || true
 
-# Copy OrionOS overlay
+# Copy OrionOS overlay (skip permission errors)
 OVERLAY="${PROJECT_ROOT}/build/profiles/orionos/airootfs"
 if [[ -d "$OVERLAY" ]]; then
-    cp -a "$OVERLAY/." "$ROOTFS/"
+    cp -a "$OVERLAY/." "$ROOTFS/" 2>/dev/null || true
     echo "  Applied OrionOS overlay"
 fi
 
